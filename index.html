@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Amigos da OI ⚽</title>
+  <title>TiA - Amigos da Oi ⚽</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -31,98 +31,149 @@
   <script type="text/babel">
     const {useState, useEffect, useRef} = React;
 
-    /* ── Icons (Lucide com fallback emoji) ───────────────── */
+    /* ═══════════════════════════════════════════════════
+       ICONS (Lucide com fallback emoji)
+    ═══════════════════════════════════════════════════ */
     const LR = window.LucideReact || {};
-    const mk = (name, fb) => (p) => {
-      const C = LR[name];
-      return C ? <C {...p}/> : <span style={{fontSize:'0.9em',lineHeight:1}}>{fb}</span>;
-    };
-    const IcoAdd    = mk('UserPlus','+');
-    const IcoTrash  = mk('Trash2','🗑');
-    const IcoEdit   = mk('Edit2','✏');
-    const IcoCheck  = mk('Check','✓');
-    const IcoX      = mk('X','×');
-    const IcoShuf   = mk('Shuffle','🔀');
-    const IcoReset  = mk('RotateCcw','↺');
-    const IcoShare  = mk('Share2','↗');
-    const IcoAlert  = mk('AlertCircle','⚠');
-    const IcoZap    = mk('Zap','⚡');
-    const IcoChkSq  = mk('CheckSquare','☑');
-    const IcoSq     = mk('Square','☐');
+    const mk = (n, fb) => p => { const C=LR[n]; return C?<C {...p}/>:<span style={{fontSize:'0.9em'}}>{fb}</span>; };
+    const IcoAdd   = mk('UserPlus','+');
+    const IcoTrash = mk('Trash2','🗑');
+    const IcoEdit  = mk('Edit2','✏');
+    const IcoCheck = mk('Check','✓');
+    const IcoX     = mk('X','×');
+    const IcoShuf  = mk('Shuffle','🔀');
+    const IcoReset = mk('RotateCcw','↺');
+    const IcoAlert = mk('AlertCircle','⚠');
+    const IcoZap   = mk('Zap','⚡');
+    const IcoChkSq = mk('CheckSquare','☑');
+    const IcoSq    = mk('Square','☐');
 
-    /* ── Constantes ──────────────────────────────────────── */
-    const LEVELS = [4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10];
+    /* Ícone de camisa (usa Lucide Shirt path com fill sólido) */
+    const ShirtSVG = ({size=28, fill='#000', stroke='#333'}) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke}
+           strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
+      </svg>
+    );
+
+    /* Ícone do robô/android vestindo camisa preta e rosa (SVG inline) */
+    const RobotIcon = () => (
+      <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Antena */}
+        <line x1="19" y1="2" x2="19" y2="7" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round"/>
+        <circle cx="19" cy="1.8" r="2.2" fill="#f472b6"/>
+        {/* Cabeça */}
+        <rect x="8" y="7" width="22" height="15" rx="4" fill="#1e293b"/>
+        <rect x="8" y="7" width="22" height="15" rx="4" stroke="#475569" strokeWidth="0.8"/>
+        {/* Olho esquerdo (azul) */}
+        <rect x="11" y="11" width="6" height="5" rx="1.5" fill="#1d4ed8"/>
+        <rect x="12.5" y="12.5" width="2.5" height="2" rx="0.5" fill="#bfdbfe"/>
+        {/* Olho direito (rosa) */}
+        <rect x="21" y="11" width="6" height="5" rx="1.5" fill="#be185d"/>
+        <rect x="22.5" y="12.5" width="2.5" height="2" rx="0.5" fill="#fbcfe8"/>
+        {/* Boca LED */}
+        <rect x="12" y="18.5" width="14" height="1.8" rx="0.9" fill="#0f172a"/>
+        <circle cx="15" cy="19.4" r="0.8" fill="#22c55e"/>
+        <circle cx="19" cy="19.4" r="0.8" fill="#22c55e"/>
+        <circle cx="23" cy="19.4" r="0.8" fill="#22c55e"/>
+        {/* Pescoço */}
+        <rect x="16" y="22" width="6" height="3.5" rx="1.5" fill="#334155"/>
+        {/* Camisa — metade esquerda PRETA */}
+        <path d="M5 28 L11 24.5 L19 26 L19 37 L7 37 Z" fill="#111827"/>
+        {/* Camisa — metade direita ROSA */}
+        <path d="M33 28 L27 24.5 L19 26 L19 37 L31 37 Z" fill="#ec4899"/>
+        {/* Manga esquerda */}
+        <path d="M3 29 L5 28 L7 37 L3 33 Z" fill="#0f172a"/>
+        {/* Manga direita */}
+        <path d="M35 29 L33 28 L31 37 L35 33 Z" fill="#db2777"/>
+        {/* Gola */}
+        <path d="M16 25.5 Q19 23 22 25.5 L20.5 26 Q19 24.5 17.5 26 Z" fill="#334155"/>
+      </svg>
+    );
+
+    /* ═══════════════════════════════════════════════════
+       CONSTANTES
+    ═══════════════════════════════════════════════════ */
+    const LEVELS    = [4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10];
     const POSITIONS = ['G','Z','M','A'];
     const PL = {G:'Goleiro',Z:'Zagueiro',M:'Meio-campo',A:'Atacante'};
-    // Badge de posição
     const PB = {G:'bg-amber-400 text-amber-900',Z:'bg-sky-400 text-sky-900',M:'bg-emerald-400 text-emerald-900',A:'bg-red-500 text-red-900'};
-    // Row selecionada (convocação)
     const PR = {G:'bg-amber-950 border-amber-700',Z:'bg-sky-950 border-sky-700',M:'bg-emerald-950 border-emerald-700',A:'bg-red-950 border-red-700'};
 
-    /* ── localStorage ────────────────────────────────────── */
-    const LS = 'aoi_v2';
-    const lsLoad = () => { try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch{return{}} };
-    const lsSave = d => { try{localStorage.setItem(LS,JSON.stringify(d))}catch{} };
+    /* ═══════════════════════════════════════════════════
+       LOCALSTORAGE
+    ═══════════════════════════════════════════════════ */
+    const LS_KEY = 'tia_aoi_v1';
+    const lsLoad = () => { try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}')}catch{return{}} };
+    const lsSave = d => { try{localStorage.setItem(LS_KEY,JSON.stringify(d))}catch{} };
 
-    /* ── Algoritmo de Sorteio  C(12,6) = 924 combinações ── */
+    /* ═══════════════════════════════════════════════════
+       ALGORITMO DE SORTEIO  ·  C(12,6) = 924 combos
+    ═══════════════════════════════════════════════════ */
     function getCombos(arr, k) {
       const res = [];
       const go = (s, cur) => {
-        if (cur.length === k) { res.push([...cur]); return; }
-        const need = k - cur.length;
-        for (let i = s; i <= arr.length - need; i++) { cur.push(arr[i]); go(i+1, cur); cur.pop(); }
+        if (cur.length===k){res.push([...cur]);return}
+        const need = k-cur.length;
+        for(let i=s;i<=arr.length-need;i++){cur.push(arr[i]);go(i+1,cur);cur.pop()}
       };
-      go(0, []);
+      go(0,[]);
       return res;
     }
 
     function sortear(sel) {
-      const allGks = sel.filter(p => p.position === 'G');
-      const nonGk  = sel.filter(p => p.position !== 'G');
-      if (allGks.length < 2) return null;
-      const [gk1, gk2] = allGks;
-      // GKs extras (>2) viram jogadores de linha
+      const allGks = sel.filter(p=>p.position==='G');
+      const nonGk  = sel.filter(p=>p.position!=='G');
+      if(allGks.length<2) return null;
+      const [gk1,gk2] = allGks;
+      // GKs excedentes (>2) viram jogadores de linha
       const linha = [...nonGk, ...allGks.slice(2)];
-      if (linha.length !== 12) return null;
+      if(linha.length!==12) return null;
 
-      let best = null, bs = Infinity;
-      for (const g1 of getCombos(linha, 6)) {
-        const ids = new Set(g1.map(p => p.id));
-        const g2  = linha.filter(p => !ids.has(p.id));
-        const s1  = g1.reduce((a,p) => a+p.level, 0);
-        const s2  = g2.reduce((a,p) => a+p.level, 0);
-        const ld  = Math.abs(s1 - s2);
-        const cnt = (a, pos) => a.filter(p => p.position === pos).length;
+      let best=null, bs=Infinity;
+      for(const g1 of getCombos(linha, 6)){
+        const ids = new Set(g1.map(p=>p.id));
+        const g2  = linha.filter(p=>!ids.has(p.id));
+        const s1  = g1.reduce((a,p)=>a+p.level, 0);
+        const s2  = g2.reduce((a,p)=>a+p.level, 0);
+        const ld  = Math.abs(s1-s2);
+        const cnt = (a,pos) => a.filter(p=>p.position===pos).length;
         const pd  = Math.abs(cnt(g1,'Z')-cnt(g2,'Z')) + Math.abs(cnt(g1,'M')-cnt(g2,'M')) + Math.abs(cnt(g1,'A')-cnt(g2,'A'));
-        const sc  = ld * 10 + pd * 3;
-        if (sc < bs) { bs = sc; best = {g1, g2}; }
+        const sc  = ld*10 + pd*3;
+        if(sc<bs){bs=sc; best={g1,g2}}
       }
-      if (!best) return null;
+      if(!best) return null;
 
       const ord = {G:0,Z:1,M:2,A:3};
-      const srt = a => [...a].sort((x,y) => ord[x.position] - ord[y.position]);
-      const [gkP, gkR] = Math.random() > .5 ? [gk1, gk2] : [gk2, gk1];
-      const preto = srt([gkP, ...best.g1]);
-      const rosa  = srt([gkR, ...best.g2]);
-      const sp = preto.reduce((a,p) => a+p.level, 0);
-      const sr = rosa.reduce((a,p)  => a+p.level, 0);
-      return { preto, rosa, sp, sr,
-        ap: (sp/7).toFixed(2), ar: (sr/7).toFixed(2),
-        diff: Math.abs(sp-sr).toFixed(1) };
+      const srt = a => [...a].sort((x,y)=>ord[x.position]-ord[y.position]);
+      const [gkP,gkR] = Math.random()>.5 ? [gk1,gk2] : [gk2,gk1];
+      const preto = srt([gkP,...best.g1]);
+      const rosa  = srt([gkR,...best.g2]);
+      const sp = preto.reduce((a,p)=>a+p.level, 0);
+      const sr = rosa.reduce((a,p)=>a+p.level, 0);
+      return {
+        preto, rosa, sp, sr,
+        ap: (sp/7).toFixed(2),
+        ar: (sr/7).toFixed(2),
+        diff: Math.abs(sp-sr).toFixed(1),
+        _ts: Date.now()   // força re-render mesmo que resultado pareça igual
+      };
     }
 
-    /* ── Componentes compartilhados ──────────────────────── */
+    /* ═══════════════════════════════════════════════════
+       COMPONENTES COMPARTILHADOS
+    ═══════════════════════════════════════════════════ */
     const PBadge = ({pos}) => (
       <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black flex-shrink-0 ${PB[pos]}`}>{pos}</span>
     );
     const LChip = ({level}) => {
-      const c = level>=8 ? 'text-emerald-400' : level>=6 ? 'text-amber-400' : 'text-orange-500';
-      return <span className={`text-sm font-black tabular-nums ${c}`}>{level%1===0 ? level+'.0' : level}</span>;
+      const c = level>=8?'text-emerald-400':level>=6?'text-amber-400':'text-orange-500';
+      return <span className={`text-sm font-black tabular-nums ${c}`}>{level%1===0?level+'.0':level}</span>;
     };
 
-    /* ══════════════════════════════════════════════════════
+    /* ═══════════════════════════════════════════════════
        TAB 1 — ELENCO
-    ══════════════════════════════════════════════════════ */
+    ═══════════════════════════════════════════════════ */
     function Elenco({players, onAdd, onDel, onEdit}) {
       const [nm,  setNm]  = useState('');
       const [pos, setPos] = useState('M');
@@ -132,36 +183,33 @@
       const [err, setErr] = useState('');
       const ref = useRef();
 
-      const reset = () => { setEid(null); setNm(''); setPos('M'); setLvl(7); setErr(''); };
+      const reset = () => { setEid(null);setNm('');setPos('M');setLvl(7);setErr(''); };
       const startEdit = p => {
-        setEid(p.id); setNm(p.name); setPos(p.position); setLvl(p.level); setErr('');
-        setTimeout(() => ref.current?.focus(), 50);
+        setEid(p.id);setNm(p.name);setPos(p.position);setLvl(p.level);setErr('');
+        setTimeout(()=>ref.current?.focus(), 50);
       };
       const submit = () => {
-        if (!nm.trim()) { setErr('Digite o nome do jogador.'); return; }
-        eid ? onEdit({id:eid, name:nm.trim(), position:pos, level:lvl})
-            : onAdd({name:nm.trim(), position:pos, level:lvl});
+        if(!nm.trim()){setErr('Digite o nome do jogador.');return}
+        eid ? onEdit({id:eid,name:nm.trim(),position:pos,level:lvl})
+            : onAdd({name:nm.trim(),position:pos,level:lvl});
         reset();
       };
 
-      const cnt  = POSITIONS.reduce((a,p) => ({...a, [p]: players.filter(x=>x.position===p).length}), {});
-      const list = fil === 'ALL' ? players : players.filter(p => p.position === fil);
+      const cnt  = POSITIONS.reduce((a,p)=>({...a,[p]:players.filter(x=>x.position===p).length}),{});
+      const list = fil==='ALL' ? players : players.filter(p=>p.position===fil);
 
       return (
         <div className="p-4 space-y-4 fu">
-          {/* ── Formulário ── */}
+          {/* Formulário */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
             <h2 className="text-sm font-bold text-pink-400 mb-3 flex items-center gap-1.5">
-              <IcoAdd size={14}/> {eid ? 'Editar Jogador' : 'Novo Jogador'}
+              <IcoAdd size={14}/> {eid?'Editar Jogador':'Novo Jogador'}
             </h2>
-            {err && (
-              <div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-950 border border-red-800 rounded-xl px-3 py-2 mb-3">
-                <IcoAlert size={12}/> {err}
-              </div>
-            )}
+            {err&&<div className="flex items-center gap-1.5 text-xs text-red-400 bg-red-950 border border-red-800 rounded-xl px-3 py-2 mb-3">
+              <IcoAlert size={12}/> {err}</div>}
             <div className="space-y-3">
               <input ref={ref} value={nm} onChange={e=>setNm(e.target.value)}
-                onKeyDown={e => e.key==='Enter' && submit()}
+                onKeyDown={e=>e.key==='Enter'&&submit()}
                 placeholder="Nome do jogador" maxLength={40}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-colors placeholder-gray-600"/>
               <div className="grid grid-cols-2 gap-3">
@@ -169,35 +217,32 @@
                   <div className="text-xs text-gray-500 mb-1">Posição</div>
                   <select value={pos} onChange={e=>setPos(e.target.value)}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-sm outline-none focus:border-pink-500 transition-colors">
-                    {POSITIONS.map(p => <option key={p} value={p}>{p} – {PL[p]}</option>)}
+                    {POSITIONS.map(p=><option key={p} value={p}>{p} – {PL[p]}</option>)}
                   </select>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500 mb-1">Nível Técnico</div>
                   <select value={lvl} onChange={e=>setLvl(parseFloat(e.target.value))}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-3 text-sm outline-none focus:border-pink-500 transition-colors">
-                    {LEVELS.map(l => <option key={l} value={l}>{l%1===0 ? l+'.0' : l}</option>)}
+                    {LEVELS.map(l=><option key={l} value={l}>{l%1===0?l+'.0':l}</option>)}
                   </select>
                 </div>
               </div>
               <div className="flex gap-2">
-                {eid && (
-                  <button onClick={reset}
-                    className="flex-1 bg-gray-800 hover:bg-gray-700 rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors">
-                    <IcoX size={13}/> Cancelar
-                  </button>
-                )}
+                {eid&&<button onClick={reset}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                  <IcoX size={13}/> Cancelar</button>}
                 <button onClick={submit}
                   className="flex-1 gbtn rounded-xl py-3 text-sm font-bold text-white flex items-center justify-center gap-1.5">
-                  {eid ? <><IcoCheck size={13}/> Salvar</> : <><IcoAdd size={13}/> Adicionar</>}
+                  {eid?<><IcoCheck size={13}/> Salvar</>:<><IcoAdd size={13}/> Adicionar</>}
                 </button>
               </div>
             </div>
           </div>
 
-          {/* ── Contadores por posição ── */}
+          {/* Contadores por posição */}
           <div className="grid grid-cols-4 gap-2">
-            {POSITIONS.map(p => (
+            {POSITIONS.map(p=>(
               <div key={p} className="bg-gray-900 border border-gray-800 rounded-xl p-2 text-center">
                 <div className="text-2xl font-black">{cnt[p]}</div>
                 <PBadge pos={p}/>
@@ -205,67 +250,65 @@
             ))}
           </div>
 
-          {/* ── Filtros ── */}
-          {players.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
-              {['ALL', ...POSITIONS].map(f => (
-                <button key={f} onClick={() => setFil(f)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                    fil===f ? 'bg-pink-500 text-white' : 'bg-gray-900 border border-gray-800 text-gray-400 hover:border-gray-600'}`}>
-                  {f==='ALL' ? `Todos (${players.length})` : `${f} · ${cnt[f]}`}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Filtros */}
+          {players.length>0&&<div className="flex gap-1.5 flex-wrap">
+            {['ALL',...POSITIONS].map(f=>(
+              <button key={f} onClick={()=>setFil(f)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  fil===f?'bg-pink-500 text-white':'bg-gray-900 border border-gray-800 text-gray-400 hover:border-gray-600'}`}>
+                {f==='ALL'?`Todos (${players.length})`:`${f} · ${cnt[f]}`}
+              </button>
+            ))}
+          </div>}
 
-          {/* ── Lista de jogadores ── */}
-          {list.length === 0
-            ? <div className="text-center py-12 text-gray-600 text-sm">
-                {players.length===0 ? '⚽ Nenhum jogador cadastrado ainda.' : 'Sem jogadores nesta posição.'}
+          {/* Lista */}
+          {list.length===0
+            ?<div className="text-center py-12 text-gray-600 text-sm">
+                {players.length===0?'⚽ Nenhum jogador cadastrado ainda.':'Sem jogadores nesta posição.'}
               </div>
-            : <div className="space-y-2">
-                {list.map(p => (
-                  <div key={p.id}
-                    className="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors">
-                    <PBadge pos={p.position}/>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate">{p.name}</div>
-                      <div className="text-xs text-gray-500">{PL[p.position]}</div>
-                    </div>
-                    <LChip level={p.level}/>
-                    <div className="flex gap-3 ml-1">
-                      <button onClick={() => startEdit(p)} className="text-gray-600 hover:text-pink-400 transition-colors"><IcoEdit size={15}/></button>
-                      <button onClick={() => onDel(p.id)}  className="text-gray-600 hover:text-red-400 transition-colors"><IcoTrash size={15}/></button>
-                    </div>
+            :<div className="space-y-2">
+              {list.map(p=>(
+                <div key={p.id}
+                  className="bg-gray-900 border border-gray-800 hover:border-gray-700 rounded-xl px-4 py-3 flex items-center gap-3 transition-colors">
+                  <PBadge pos={p.position}/>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate">{p.name}</div>
+                    <div className="text-xs text-gray-500">{PL[p.position]}</div>
                   </div>
-                ))}
-              </div>}
+                  <LChip level={p.level}/>
+                  <div className="flex gap-3 ml-1">
+                    <button onClick={()=>startEdit(p)} className="text-gray-600 hover:text-pink-400 transition-colors"><IcoEdit size={15}/></button>
+                    <button onClick={()=>onDel(p.id)}  className="text-gray-600 hover:text-red-400 transition-colors"><IcoTrash size={15}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>}
         </div>
       );
     }
 
-    /* ══════════════════════════════════════════════════════
+    /* ═══════════════════════════════════════════════════
        TAB 2 — CONVOCAÇÃO (Pelada)
-    ══════════════════════════════════════════════════════ */
+    ═══════════════════════════════════════════════════ */
     function Convo({players, selected, onToggle, onToggleAll, onSort}) {
-      const sel    = players.filter(p => selected.has(p.id));
+      const sel    = players.filter(p=>selected.has(p.id));
       const cnt    = sel.length;
-      const gks    = sel.filter(p => p.position==='G').length;
-      const canGo  = cnt === 14 && gks >= 2;
-      const over   = cnt > 14;
-      const allSel = players.length > 0 && players.every(p => selected.has(p.id));
+      const gks    = sel.filter(p=>p.position==='G').length;
+      const canGo  = cnt===14 && gks>=2;
+      const over   = cnt>14;
+      const allSel = players.length>0 && players.every(p=>selected.has(p.id));
       const barPct = Math.min((cnt/14)*100, 100);
-      const barCls = over ? 'bg-red-500' : cnt===14 ? 'bg-emerald-500' : 'bg-pink-500';
-      const groups = POSITIONS.reduce((a,pos) => {
-        const g = players.filter(p => p.position===pos);
-        if (g.length) a[pos] = g;
+      const barCls = over?'bg-red-500':cnt===14?'bg-emerald-500':'bg-pink-500';
+      const groups = POSITIONS.reduce((a,pos)=>{
+        const g=players.filter(p=>p.position===pos);
+        if(g.length) a[pos]=g;
         return a;
-      }, {});
+      },{});
 
-      const Rule = ({done, text}) => (
-        <div className={`flex items-center gap-2 text-xs ${done ? 'text-emerald-400' : 'text-gray-500'}`}>
-          <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${done ? 'bg-emerald-500 border-emerald-500' : 'border-gray-600'}`}>
-            {done && <IcoCheck size={10} strokeWidth={3}/>}
+      const Rule=({done,text})=>(
+        <div className={`flex items-center gap-2 text-xs ${done?'text-emerald-400':'text-gray-500'}`}>
+          <div className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition-all ${done?'bg-emerald-500 border-emerald-500':'border-gray-600'}`}>
+            {done&&<IcoCheck size={10} strokeWidth={3}/>}
           </div>
           {text}
         </div>
@@ -273,99 +316,99 @@
 
       return (
         <div className="p-4 space-y-4 fu">
-          {/* ── Painel de status ── */}
+          {/* Painel de status */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
             <div className="flex items-end justify-between mb-3">
               <div>
                 <div className="text-xs text-gray-500 mb-0.5">Selecionados</div>
-                <div className={`text-3xl font-black ${cnt===14 ? 'text-emerald-400' : over ? 'text-red-400' : 'text-white'}`}>
+                <div className={`text-3xl font-black ${cnt===14?'text-emerald-400':over?'text-red-400':'text-white'}`}>
                   {cnt}<span className="text-gray-600 text-base font-normal">/14</span>
                 </div>
               </div>
-              <div className="text-xs text-gray-500">{gks} goleiro{gks!==1?'s':''} selecionado{gks!==1?'s':''}</div>
+              <div className="text-xs text-gray-500">{gks} goleiro{gks!==1?'s':''}</div>
             </div>
             <div className="w-full bg-gray-800 rounded-full h-2 mb-3 overflow-hidden">
               <div className={`h-2 rounded-full transition-all duration-300 ${barCls}`} style={{width:`${barPct}%`}}/>
             </div>
             <div className="space-y-1.5">
-              <Rule done={cnt===14}  text="Exatamente 14 jogadores"/>
+              <Rule done={cnt===14} text="Exatamente 14 jogadores"/>
               <Rule done={gks>=2}   text={`Mínimo 2 goleiros (${gks} selecionado${gks!==1?'s':''})`}/>
             </div>
           </div>
 
-          {/* ── Botão Sortear ── */}
-          <button onClick={() => canGo && onSort()}
+          {/* Botão Sortear */}
+          <button onClick={()=>canGo&&onSort()}
             className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-3 transition-all ${
-              canGo ? 'gbtn text-white gp shadow-xl' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}>
+              canGo?'gbtn text-white gp shadow-xl':'bg-gray-800 text-gray-600 cursor-not-allowed'}`}>
             <IcoShuf size={20}/> SORTEAR TIMES
           </button>
 
-          {/* ── Aviso ── */}
-          {!canGo && cnt > 0 && (
+          {/* Aviso */}
+          {!canGo&&cnt>0&&(
             <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-950 border border-amber-800 rounded-xl px-3 py-2.5">
               <IcoAlert size={13}/>
-              {cnt !== 14
-                ? (cnt<14 ? `Faltam ${14-cnt} jogador${14-cnt>1?'es':''}.` : `${cnt-14} a mais do que o necessário.`)
-                : 'Adicione pelo menos 2 goleiros.'}
+              {cnt!==14
+                ?(cnt<14?`Faltam ${14-cnt} jogador${14-cnt>1?'es':''}.`:`${cnt-14} a mais do que o necessário.`)
+                :'Adicione pelo menos 2 goleiros.'}
             </div>
           )}
 
-          {/* ── Marcar/desmarcar todos ── */}
-          {players.length > 0 && (
+          {/* Marcar/desmarcar todos */}
+          {players.length>0&&(
             <button onClick={onToggleAll}
               className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-pink-400 transition-colors py-1">
-              {allSel ? <IcoChkSq size={13}/> : <IcoSq size={13}/>}
-              {allSel ? 'Desmarcar todos' : 'Marcar todos'}
+              {allSel?<IcoChkSq size={13}/>:<IcoSq size={13}/>}
+              {allSel?'Desmarcar todos':'Marcar todos'}
             </button>
           )}
 
-          {/* ── Grupos por posição ── */}
-          {players.length === 0
-            ? <div className="text-center py-12 text-gray-600 text-sm">Cadastre jogadores no Elenco primeiro.</div>
-            : Object.entries(groups).map(([pos, grp]) => {
-                const sc = grp.filter(p => selected.has(p.id)).length;
-                return (
-                  <div key={pos}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <PBadge pos={pos}/>
-                      <span className="text-xs font-bold text-gray-500 tracking-wide">{PL[pos].toUpperCase()}</span>
-                      <div className="flex-1 h-px bg-gray-800"/>
-                      <span className="text-xs text-gray-600">{sc}/{grp.length}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {grp.map(p => {
-                        const isSel = selected.has(p.id);
-                        return (
-                          <div key={p.id} onClick={() => onToggle(p.id)}
-                            className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none transition-colors border ${
-                              isSel ? `${PR[p.position]} border-opacity-60` : 'bg-gray-900 border-gray-800'}`}>
-                            <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${
-                              isSel ? 'bg-pink-500 border-pink-500' : 'border-gray-600'}`}>
-                              {isSel && <IcoCheck size={11} strokeWidth={3}/>}
-                            </div>
-                            <span className="flex-1 text-sm font-medium truncate">{p.name}</span>
-                            <LChip level={p.level}/>
-                          </div>
-                        );
-                      })}
-                    </div>
+          {/* Grupos por posição */}
+          {players.length===0
+            ?<div className="text-center py-12 text-gray-600 text-sm">Cadastre jogadores no Elenco primeiro.</div>
+            :Object.entries(groups).map(([pos,grp])=>{
+              const sc=grp.filter(p=>selected.has(p.id)).length;
+              return(
+                <div key={pos}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <PBadge pos={pos}/>
+                    <span className="text-xs font-bold text-gray-500 tracking-wide">{PL[pos].toUpperCase()}</span>
+                    <div className="flex-1 h-px bg-gray-800"/>
+                    <span className="text-xs text-gray-600">{sc}/{grp.length}</span>
                   </div>
-                );
-              })}
+                  <div className="space-y-2">
+                    {grp.map(p=>{
+                      const isSel=selected.has(p.id);
+                      return(
+                        <div key={p.id} onClick={()=>onToggle(p.id)}
+                          className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer select-none transition-colors border ${
+                            isSel?PR[p.position]+' border-opacity-60':'bg-gray-900 border-gray-800'}`}>
+                          <div className={`w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all ${
+                            isSel?'bg-pink-500 border-pink-500':'border-gray-600'}`}>
+                            {isSel&&<IcoCheck size={11} strokeWidth={3}/>}
+                          </div>
+                          <span className="flex-1 text-sm font-medium truncate">{p.name}</span>
+                          <LChip level={p.level}/>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
         </div>
       );
     }
 
-    /* ══════════════════════════════════════════════════════
-       TAB 3 — TIMES
-    ══════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════
+       TAB 3 — TIMES (Resultado do Sorteio)
+    ═══════════════════════════════════════════════════ */
     function Times({teams, onResort}) {
-      if (!teams) return (
+      if(!teams) return(
         <div className="flex flex-col items-center justify-center py-20 px-8 text-center fu">
           <div className="text-6xl mb-4">⚽</div>
           <p className="text-gray-500 text-sm leading-relaxed">
-            Vá à aba <strong className="text-pink-400">Pelada</strong>, selecione
-            exatamente 14 jogadores (mín. 2 goleiros) e clique em{' '}
+            Vá à aba <strong className="text-pink-400">Pelada</strong>, selecione exatamente
+            14 jogadores (mín. 2 goleiros) e clique em{' '}
             <strong className="text-pink-400">Sortear Times</strong>.
           </p>
         </div>
@@ -373,69 +416,88 @@
 
       const {preto, rosa, sp, sr, ap, ar, diff} = teams;
       const d = parseFloat(diff);
-      const [dlbl, dcls] =
-        d === 0    ? ['Equilíbrio perfeito!', 'text-emerald-400'] :
-        d <= 1.5   ? ['Muito equilibrado!',   'text-emerald-400'] :
-        d <= 3     ? ['Bom equilíbrio',        'text-amber-400']  :
-                     ['Desequilibrado',         'text-red-400'];
+      const [dlbl,dcls] =
+        d===0   ? ['Equilíbrio perfeito!','text-emerald-400'] :
+        d<=1.5  ? ['Muito equilibrado!',  'text-emerald-400'] :
+        d<=3    ? ['Bom equilíbrio',       'text-amber-400']  :
+                  ['Desequilibrado',        'text-red-400'];
 
-      const share = () => {
-        const fmt = list => list.map(p =>
-          `  [${p.position}] ${p.name} (${p.level%1===0 ? p.level+'.0' : p.level})`).join('\n');
-        const txt =
-          `⚽ *Pelada Amigos da OI — Times Sorteados* ⚽\n\n` +
-          `⬛ *TIME PRETO* (Média: ${ap} | Soma: ${sp.toFixed(1)})\n${fmt(preto)}\n\n` +
-          `🩷 *TIME ROSA* (Média: ${ar} | Soma: ${sr.toFixed(1)})\n${fmt(rosa)}\n\n` +
-          `📊 Diferença técnica: ${diff} pts — ${dlbl}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank');
+      /* ── Compartilhar no WhatsApp ─────────────────────
+         • Monta a string completa em JS (com \n)
+         • Aplica encodeURIComponent() em TODA a string
+         • Abre https://wa.me/?text=<string_codificada>
+         • target="_blank" garante abertura correta       */
+      const handleWhatsApp = () => {
+        const byPos = (team, pos) =>
+          team.filter(p=>p.position===pos).map(p=>p.name);
+
+        const fmtTeam = (team, nome, avg) => {
+          const lines = [`⚽ ${nome} - Média: ${avg}`];
+          for(const pos of POSITIONS){
+            const names = byPos(team, pos);
+            if(names.length>0) lines.push(`${pos}: ${names.join(', ')}`);
+          }
+          return lines.join('\n');
+        };
+
+        const texto = [
+          'Preparem-se para ficar putos: saiu a escalação da dia para a pelada de segunda:',
+          '',
+          fmtTeam(preto, 'Preto', ap),
+          '',
+          fmtTeam(rosa, 'Rosa', ar),
+        ].join('\n');
+
+        const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
+        window.open(url, '_blank');
       };
 
+      /* ── Card de cada time ── */
       const Card = ({team, black}) => {
-        const s = black ? sp : sr, av = black ? ap : ar;
-        return (
-          <div className={`rounded-2xl overflow-hidden border ${black ? 'border-gray-700' : 'border-pink-700'}`}>
-            {/* Header */}
-            <div className={`px-4 py-3 flex items-center justify-between ${black ? 'bg-gray-900' : 'bg-pink-900'}`}>
+        const av = black ? ap : ar;
+        return(
+          <div className={`rounded-2xl overflow-hidden border ${black?'border-gray-700':'border-pink-700'}`}>
+            {/* Cabeçalho do card */}
+            <div className={`px-4 py-3 flex items-center justify-between ${black?'bg-gray-900':'bg-pink-900'}`}>
               <div className="flex items-center gap-2.5">
-                <div className={`w-7 h-7 rounded-full flex-shrink-0 ${
-                  black ? 'bg-black ring-2 ring-gray-500' : 'bg-pink-500 ring-2 ring-pink-300'}`}/>
+                {/* Ícone de camisa preenchida */}
+                <ShirtSVG
+                  size={30}
+                  fill={black?'#111827':'#ec4899'}
+                  stroke={black?'#4b5563':'#db2777'}
+                />
                 <div>
-                  <div className={`font-black text-sm tracking-wide ${black ? 'text-white' : 'text-pink-100'}`}>
-                    TIME {black ? 'PRETO' : 'ROSA'}
+                  <div className={`font-black text-sm tracking-wide ${black?'text-white':'text-pink-100'}`}>
+                    TIME {black?'PRETO':'ROSA'}
                   </div>
-                  <div className={`text-xs ${black ? 'text-gray-500' : 'text-pink-300'}`}>7 jogadores</div>
+                  <div className={`text-xs ${black?'text-gray-500':'text-pink-300'}`}>7 jogadores</div>
                 </div>
               </div>
+              {/* Apenas a MÉDIA no cabeçalho — sem notas individuais */}
               <div className="text-right">
-                <div className={`text-2xl font-black ${black ? 'text-white' : 'text-pink-200'}`}>{av}</div>
+                <div className={`text-2xl font-black ${black?'text-white':'text-pink-200'}`}>{av}</div>
                 <div className="text-xs text-gray-500">média</div>
               </div>
             </div>
-            {/* Jogadores */}
-            <div className={`p-3 space-y-1.5 ${black ? 'bg-gray-950' : 'bg-pink-950'}`}>
-              {team.map(p => (
+            {/* Lista de jogadores: SOMENTE posição + nome (sem nota individual) */}
+            <div className={`p-3 space-y-1.5 ${black?'bg-gray-950':'bg-pink-950'}`}>
+              {team.map(p=>(
                 <div key={p.id}
                   className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
-                    black ? 'bg-gray-900' : 'bg-pink-900 bg-opacity-50'}`}>
+                    black?'bg-gray-900':'bg-pink-900 bg-opacity-50'}`}>
                   <PBadge pos={p.position}/>
                   <span className="flex-1 text-sm font-medium truncate">{p.name}</span>
-                  <LChip level={p.level}/>
+                  {/* ⚠ Nota individual NÃO exibida aqui, conforme especificação */}
                 </div>
               ))}
-              {/* Soma */}
-              <div className={`flex justify-between text-xs px-3 pt-2 border-t ${
-                black ? 'border-gray-800 text-gray-600' : 'border-pink-800 text-pink-500'}`}>
-                <span>SOMA TÉCNICA</span>
-                <span className="font-black">{s.toFixed(1)}</span>
-              </div>
             </div>
           </div>
         );
       };
 
-      return (
+      return(
         <div className="p-4 space-y-4 fu">
-          {/* ── Badge de equilíbrio ── */}
+          {/* Badge de equilíbrio */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
             <div>
               <div className="text-xs text-gray-500 mb-0.5">Equilíbrio técnico</div>
@@ -449,46 +511,66 @@
           <Card team={preto} black={true}/>
           <Card team={rosa}  black={false}/>
 
-          {/* ── Ações ── */}
+          {/* Botões de ação */}
           <div className="grid grid-cols-2 gap-3">
+            {/* Ressortear: usa os mesmos 14 jogadores do sorteio anterior */}
             <button onClick={onResort}
               className="bg-gray-800 hover:bg-gray-700 active:scale-95 rounded-xl py-3.5 text-sm font-bold flex items-center justify-center gap-2 transition-all">
               <IcoReset size={15}/> Ressortear
             </button>
-            <button onClick={share}
+            {/* WhatsApp: abre com texto formatado e codificado */}
+            <button onClick={handleWhatsApp}
               className="bg-green-700 hover:bg-green-600 active:scale-95 rounded-xl py-3.5 text-sm font-bold text-white flex items-center justify-center gap-2 transition-all">
-              <IcoShare size={15}/> WhatsApp
+              <span className="text-base">📲</span> WhatsApp
             </button>
           </div>
         </div>
       );
     }
 
-    /* ══════════════════════════════════════════════════════
-       ROOT — App
-    ══════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════
+       APP ROOT
+    ═══════════════════════════════════════════════════ */
+    const _init = lsLoad(); // lê localStorage uma única vez
+
     function App() {
-      const [players,  setPlayers]  = useState(() => lsLoad().players  || []);
-      const [selected, setSelected] = useState(() => new Set(lsLoad().selected || []));
+      const [players,  setPlayers]  = useState(()=>_init.players  || []);
+      const [selected, setSelected] = useState(()=>new Set(_init.selected || []));
       const [teams,    setTeams]    = useState(null);
-      const [tab,      setTab]      = useState('elenco');
+      /* lastSortedPlayers: guarda os 14 jogadores usados no último sorteio.
+         O botão "Ressortear" usa ESTE array (não re-deriva do selection),
+         garantindo que o re-sorteio sempre use os mesmos 14.               */
+      const [lastSortedPlayers, setLastSortedPlayers] = useState([]);
+      const [tab, setTab] = useState('elenco');
 
-      useEffect(() => { lsSave({players, selected: [...selected]}); }, [players, selected]);
+      useEffect(()=>{lsSave({players, selected:[...selected]})},[players,selected]);
 
-      const addP  = d  => setPlayers(p => [...p, {...d, id:''+Date.now()}]);
+      const addP  = d  => setPlayers(p=>[...p, {...d, id:''+Date.now()}]);
       const delP  = id => {
-        setPlayers(p => p.filter(x => x.id!==id));
-        setSelected(s => { const n=new Set(s); n.delete(id); return n; });
+        setPlayers(p=>p.filter(x=>x.id!==id));
+        setSelected(s=>{ const n=new Set(s); n.delete(id); return n; });
       };
-      const editP = d  => setPlayers(p => p.map(x => x.id===d.id ? d : x));
-      const togP  = id => setSelected(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
-      const togAll = () => setSelected(
-        players.every(p => selected.has(p.id)) ? new Set() : new Set(players.map(p => p.id))
-      );
+      const editP = d  => setPlayers(p=>p.map(x=>x.id===d.id?d:x));
+      const togP  = id => setSelected(s=>{ const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+      const togAll = () =>
+        setSelected(players.every(p=>selected.has(p.id)) ? new Set() : new Set(players.map(p=>p.id)));
+
+      /* Sorteio inicial: deriva os 14 a partir do selection e os salva */
       const doSort = () => {
-        const sel = players.filter(p => selected.has(p.id));
-        const r   = sortear(sel);
-        if (r) { setTeams(r); setTab('times'); }
+        const sel = players.filter(p=>selected.has(p.id));
+        if(sel.length!==14) return;
+        setLastSortedPlayers(sel);         // salva para o Ressortear
+        const r = sortear(sel);
+        if(r){ setTeams(r); setTab('times'); }
+      };
+
+      /* Ressortear: usa lastSortedPlayers (os mesmos 14 do sorteio original).
+         _ts:Date.now() em sortear() garante que o React detecte a mudança
+         de estado mesmo que os times resultantes sejam numericamente iguais. */
+      const doResort = () => {
+        if(lastSortedPlayers.length!==14) return;
+        const r = sortear(lastSortedPlayers);
+        if(r) setTeams(r); // r já contém _ts:Date.now() — re-render garantido
       };
 
       const TABS = [
@@ -497,22 +579,23 @@
         {id:'times',  l:'Times',  e:'🏆'},
       ];
 
-      return (
+      return(
         <div className="min-h-screen bg-gray-950 max-w-md mx-auto flex flex-col">
-          {/* ── Cabeçalho + Abas ── */}
+          {/* ── Cabeçalho ── */}
           <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
             <div className="flex items-center gap-3 px-4 py-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center text-lg select-none">⚽</div>
+              <RobotIcon/>
               <div>
-                <h1 className="font-black text-base leading-tight">Amigos da OI</h1>
+                <h1 className="font-black text-base leading-tight">TiA - Amigos da Oi</h1>
                 <p className="text-xs text-gray-500">{players.length} jogador{players.length!==1?'es':''} no elenco</p>
               </div>
             </div>
+            {/* Abas */}
             <div className="flex border-t border-gray-800">
-              {TABS.map(({id,l,e}) => (
-                <button key={id} onClick={() => setTab(id)}
+              {TABS.map(({id,l,e})=>(
+                <button key={id} onClick={()=>setTab(id)}
                   className={`flex-1 flex items-center justify-center gap-1 py-3 text-xs font-bold border-b-2 transition-colors ${
-                    tab===id ? 'border-pink-500 text-pink-400' : 'border-transparent text-gray-600 hover:text-gray-400'}`}>
+                    tab===id?'border-pink-500 text-pink-400':'border-transparent text-gray-600 hover:text-gray-400'}`}>
                   {e} {l}
                 </button>
               ))}
@@ -523,7 +606,7 @@
           <main className="flex-1 overflow-y-auto pb-6">
             {tab==='elenco' && <Elenco players={players} onAdd={addP} onDel={delP} onEdit={editP}/>}
             {tab==='pelada' && <Convo  players={players} selected={selected} onToggle={togP} onToggleAll={togAll} onSort={doSort}/>}
-            {tab==='times'  && <Times  teams={teams} onResort={doSort}/>}
+            {tab==='times'  && <Times  teams={teams} onResort={doResort}/>}
           </main>
         </div>
       );
