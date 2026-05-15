@@ -32,7 +32,7 @@
     const {useState, useEffect, useRef} = React;
 
     /* ═══════════════════════════════════════════════════
-       ICONS (Lucide com fallback emoji)
+       ICONS
     ═══════════════════════════════════════════════════ */
     const LR = window.LucideReact || {};
     const mk = (n, fb) => p => { const C=LR[n]; return C?<C {...p}/>:<span style={{fontSize:'0.9em'}}>{fb}</span>; };
@@ -48,45 +48,32 @@
     const IcoChkSq = mk('CheckSquare','☑');
     const IcoSq    = mk('Square','☐');
 
-    /* Ícone de camisa (usa Lucide Shirt path com fill sólido) */
-    const ShirtSVG = ({size=28, fill='#000', stroke='#333'}) => (
+    const ShirtSVG = ({size=28, fill, stroke}) => (
       <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke}
            strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
       </svg>
     );
 
-    /* Ícone do robô/android vestindo camisa preta e rosa (SVG inline) */
     const RobotIcon = () => (
       <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Antena */}
         <line x1="19" y1="2" x2="19" y2="7" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round"/>
         <circle cx="19" cy="1.8" r="2.2" fill="#f472b6"/>
-        {/* Cabeça */}
         <rect x="8" y="7" width="22" height="15" rx="4" fill="#1e293b"/>
         <rect x="8" y="7" width="22" height="15" rx="4" stroke="#475569" strokeWidth="0.8"/>
-        {/* Olho esquerdo (azul) */}
         <rect x="11" y="11" width="6" height="5" rx="1.5" fill="#1d4ed8"/>
         <rect x="12.5" y="12.5" width="2.5" height="2" rx="0.5" fill="#bfdbfe"/>
-        {/* Olho direito (rosa) */}
         <rect x="21" y="11" width="6" height="5" rx="1.5" fill="#be185d"/>
         <rect x="22.5" y="12.5" width="2.5" height="2" rx="0.5" fill="#fbcfe8"/>
-        {/* Boca LED */}
         <rect x="12" y="18.5" width="14" height="1.8" rx="0.9" fill="#0f172a"/>
         <circle cx="15" cy="19.4" r="0.8" fill="#22c55e"/>
         <circle cx="19" cy="19.4" r="0.8" fill="#22c55e"/>
         <circle cx="23" cy="19.4" r="0.8" fill="#22c55e"/>
-        {/* Pescoço */}
         <rect x="16" y="22" width="6" height="3.5" rx="1.5" fill="#334155"/>
-        {/* Camisa — metade esquerda PRETA */}
         <path d="M5 28 L11 24.5 L19 26 L19 37 L7 37 Z" fill="#111827"/>
-        {/* Camisa — metade direita ROSA */}
         <path d="M33 28 L27 24.5 L19 26 L19 37 L31 37 Z" fill="#ec4899"/>
-        {/* Manga esquerda */}
         <path d="M3 29 L5 28 L7 37 L3 33 Z" fill="#0f172a"/>
-        {/* Manga direita */}
         <path d="M35 29 L33 28 L31 37 L35 33 Z" fill="#db2777"/>
-        {/* Gola */}
         <path d="M16 25.5 Q19 23 22 25.5 L20.5 26 Q19 24.5 17.5 26 Z" fill="#334155"/>
       </svg>
     );
@@ -108,7 +95,8 @@
     const lsSave = d => { try{localStorage.setItem(LS_KEY,JSON.stringify(d))}catch{} };
 
     /* ═══════════════════════════════════════════════════
-       ALGORITMO DE SORTEIO  ·  C(12,6) = 924 combos
+       ALGORITMO — Sorteio inicial  C(12,6) = 924 combos
+       Maximiza equilíbrio de nível e distribuição tática.
     ═══════════════════════════════════════════════════ */
     function getCombos(arr, k) {
       const res = [];
@@ -126,7 +114,6 @@
       const nonGk  = sel.filter(p=>p.position!=='G');
       if(allGks.length<2) return null;
       const [gk1,gk2] = allGks;
-      // GKs excedentes (>2) viram jogadores de linha
       const linha = [...nonGk, ...allGks.slice(2)];
       if(linha.length!==12) return null;
 
@@ -151,13 +138,74 @@
       const rosa  = srt([gkR,...best.g2]);
       const sp = preto.reduce((a,p)=>a+p.level, 0);
       const sr = rosa.reduce((a,p)=>a+p.level, 0);
-      return {
-        preto, rosa, sp, sr,
-        ap: (sp/7).toFixed(2),
-        ar: (sr/7).toFixed(2),
-        diff: Math.abs(sp-sr).toFixed(1),
-        _ts: Date.now()   // força re-render mesmo que resultado pareça igual
+      return { preto,rosa,sp,sr, ap:(sp/7).toFixed(2), ar:(sr/7).toFixed(2), diff:Math.abs(sp-sr).toFixed(1), _ts:Date.now() };
+    }
+
+    /* ═══════════════════════════════════════════════════
+       ALGORITMO — Re-sorteio com mudança forçada
+       ─────────────────────────────────────────────────
+       Garante pelo menos `minSwaps` jogadores de LINHA
+       trocando de time em relação ao sorteio anterior.
+
+       Scoring diferente do sortear():
+         • Penalidade de nível reduzida (×5): aceita leve
+           desequilíbrio para favorecer variedade.
+         • Penalidade de similaridade (common×10): candidatos
+           mais diferentes do estado anterior são fortemente
+           preferidos, mesmo com nível um pouco pior.
+         • Fallback automático: tenta minSwaps=3 → 2 → 1 → 0
+           para nunca travar.
+       g1 é sempre alocado ao Preto (garante a restrição);
+       apenas os Goleiros são sorteados aleatoriamente.
+    ═══════════════════════════════════════════════════ */
+    function sortearComDiff(sel, prevPretoIds, minSwaps = 3) {
+      const allGks = sel.filter(p=>p.position==='G');
+      const nonGk  = sel.filter(p=>p.position!=='G');
+      if(allGks.length<2) return null;
+      const [gk1,gk2] = allGks;
+      const linha = [...nonGk, ...allGks.slice(2)];
+      if(linha.length!==12) return null;
+
+      const combos = getCombos(linha, 6);
+
+      const tryFind = (maxCommon) => {
+        let best=null, bs=Infinity;
+        for(const g1 of combos){
+          // common = jogadores de g1 que estavam no Time Preto anterior
+          const common = g1.filter(p=>prevPretoIds.has(p.id)).length;
+          // Exige ≥ minSwaps trocas: common ≤ 6 - minSwaps
+          if(common > maxCommon) continue;
+
+          const ids = new Set(g1.map(p=>p.id));
+          const g2  = linha.filter(p=>!ids.has(p.id));
+          const s1  = g1.reduce((a,p)=>a+p.level, 0);
+          const s2  = g2.reduce((a,p)=>a+p.level, 0);
+          const ld  = Math.abs(s1-s2);
+          const cnt = (a,pos) => a.filter(p=>p.position===pos).length;
+          const pd  = Math.abs(cnt(g1,'Z')-cnt(g2,'Z')) +
+                      Math.abs(cnt(g1,'M')-cnt(g2,'M')) +
+                      Math.abs(cnt(g1,'A')-cnt(g2,'A'));
+          // Penalidade de nível suavizada + penalidade de similaridade forte
+          const sc  = ld*5 + pd*3 + common*10;
+          if(sc<bs){bs=sc; best={g1,g2}}
+        }
+        return best;
       };
+
+      // Fallback gracioso: tenta minSwaps → minSwaps-1 → ... → 0
+      let best = null;
+      for(let s=minSwaps; s>=0 && !best; s--) best = tryFind(6-s);
+      if(!best) return null;
+
+      const ord = {G:0,Z:1,M:2,A:3};
+      const srt = a => [...a].sort((x,y)=>ord[x.position]-ord[y.position]);
+      // g1 → Preto (satisfaz a restrição de mudança); GK aleatório para variedade
+      const [gkP,gkR] = Math.random()>.5 ? [gk1,gk2] : [gk2,gk1];
+      const preto = srt([gkP,...best.g1]);
+      const rosa  = srt([gkR,...best.g2]);
+      const sp = preto.reduce((a,p)=>a+p.level, 0);
+      const sr = rosa.reduce((a,p)=>a+p.level, 0);
+      return { preto,rosa,sp,sr, ap:(sp/7).toFixed(2), ar:(sr/7).toFixed(2), diff:Math.abs(sp-sr).toFixed(1), _ts:Date.now() };
     }
 
     /* ═══════════════════════════════════════════════════
@@ -200,7 +248,6 @@
 
       return (
         <div className="p-4 space-y-4 fu">
-          {/* Formulário */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
             <h2 className="text-sm font-bold text-pink-400 mb-3 flex items-center gap-1.5">
               <IcoAdd size={14}/> {eid?'Editar Jogador':'Novo Jogador'}
@@ -240,7 +287,6 @@
             </div>
           </div>
 
-          {/* Contadores por posição */}
           <div className="grid grid-cols-4 gap-2">
             {POSITIONS.map(p=>(
               <div key={p} className="bg-gray-900 border border-gray-800 rounded-xl p-2 text-center">
@@ -250,7 +296,6 @@
             ))}
           </div>
 
-          {/* Filtros */}
           {players.length>0&&<div className="flex gap-1.5 flex-wrap">
             {['ALL',...POSITIONS].map(f=>(
               <button key={f} onClick={()=>setFil(f)}
@@ -261,7 +306,6 @@
             ))}
           </div>}
 
-          {/* Lista */}
           {list.length===0
             ?<div className="text-center py-12 text-gray-600 text-sm">
                 {players.length===0?'⚽ Nenhum jogador cadastrado ainda.':'Sem jogadores nesta posição.'}
@@ -288,7 +332,7 @@
     }
 
     /* ═══════════════════════════════════════════════════
-       TAB 2 — CONVOCAÇÃO (Pelada)
+       TAB 2 — CONVOCAÇÃO
     ═══════════════════════════════════════════════════ */
     function Convo({players, selected, onToggle, onToggleAll, onSort}) {
       const sel    = players.filter(p=>selected.has(p.id));
@@ -316,7 +360,6 @@
 
       return (
         <div className="p-4 space-y-4 fu">
-          {/* Painel de status */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
             <div className="flex items-end justify-between mb-3">
               <div>
@@ -336,14 +379,12 @@
             </div>
           </div>
 
-          {/* Botão Sortear */}
           <button onClick={()=>canGo&&onSort()}
             className={`w-full py-4 rounded-2xl font-black text-base flex items-center justify-center gap-3 transition-all ${
               canGo?'gbtn text-white gp shadow-xl':'bg-gray-800 text-gray-600 cursor-not-allowed'}`}>
             <IcoShuf size={20}/> SORTEAR TIMES
           </button>
 
-          {/* Aviso */}
           {!canGo&&cnt>0&&(
             <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-950 border border-amber-800 rounded-xl px-3 py-2.5">
               <IcoAlert size={13}/>
@@ -353,7 +394,6 @@
             </div>
           )}
 
-          {/* Marcar/desmarcar todos */}
           {players.length>0&&(
             <button onClick={onToggleAll}
               className="w-full flex items-center justify-center gap-1.5 text-xs text-gray-500 hover:text-pink-400 transition-colors py-1">
@@ -362,7 +402,6 @@
             </button>
           )}
 
-          {/* Grupos por posição */}
           {players.length===0
             ?<div className="text-center py-12 text-gray-600 text-sm">Cadastre jogadores no Elenco primeiro.</div>
             :Object.entries(groups).map(([pos,grp])=>{
@@ -400,7 +439,7 @@
     }
 
     /* ═══════════════════════════════════════════════════
-       TAB 3 — TIMES (Resultado do Sorteio)
+       TAB 3 — TIMES
     ═══════════════════════════════════════════════════ */
     function Times({teams, onResort}) {
       if(!teams) return(
@@ -408,8 +447,7 @@
           <div className="text-6xl mb-4">⚽</div>
           <p className="text-gray-500 text-sm leading-relaxed">
             Vá à aba <strong className="text-pink-400">Pelada</strong>, selecione exatamente
-            14 jogadores (mín. 2 goleiros) e clique em{' '}
-            <strong className="text-pink-400">Sortear Times</strong>.
+            14 jogadores (mín. 2 goleiros) e clique em <strong className="text-pink-400">Sortear Times</strong>.
           </p>
         </div>
       );
@@ -417,20 +455,13 @@
       const {preto, rosa, sp, sr, ap, ar, diff} = teams;
       const d = parseFloat(diff);
       const [dlbl,dcls] =
-        d===0   ? ['Equilíbrio perfeito!','text-emerald-400'] :
-        d<=1.5  ? ['Muito equilibrado!',  'text-emerald-400'] :
-        d<=3    ? ['Bom equilíbrio',       'text-amber-400']  :
-                  ['Desequilibrado',        'text-red-400'];
+        d===0  ? ['Equilíbrio perfeito!','text-emerald-400'] :
+        d<=1.5 ? ['Muito equilibrado!',  'text-emerald-400'] :
+        d<=3   ? ['Bom equilíbrio',       'text-amber-400']  :
+                 ['Desequilibrado',        'text-red-400'];
 
-      /* ── Compartilhar no WhatsApp ─────────────────────
-         • Monta a string completa em JS (com \n)
-         • Aplica encodeURIComponent() em TODA a string
-         • Abre https://wa.me/?text=<string_codificada>
-         • target="_blank" garante abertura correta       */
       const handleWhatsApp = () => {
-        const byPos = (team, pos) =>
-          team.filter(p=>p.position===pos).map(p=>p.name);
-
+        const byPos = (team, pos) => team.filter(p=>p.position===pos).map(p=>p.name);
         const fmtTeam = (team, nome, avg) => {
           const lines = [`⚽ ${nome} - Média: ${avg}`];
           for(const pos of POSITIONS){
@@ -439,33 +470,23 @@
           }
           return lines.join('\n');
         };
-
         const texto = [
-          'Preparem-se para ficar putos: saiu a escalação da dia para a pelada de segunda:',
+          'Preparem-se para ficar putos!! Saiu a escalação da TiA para nossa pela de segunda:',
           '',
           fmtTeam(preto, 'Preto', ap),
           '',
           fmtTeam(rosa, 'Rosa', ar),
         ].join('\n');
-
-        const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
-        window.open(url, '_blank');
+        window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
       };
 
-      /* ── Card de cada time ── */
       const Card = ({team, black}) => {
         const av = black ? ap : ar;
         return(
           <div className={`rounded-2xl overflow-hidden border ${black?'border-gray-700':'border-pink-700'}`}>
-            {/* Cabeçalho do card */}
             <div className={`px-4 py-3 flex items-center justify-between ${black?'bg-gray-900':'bg-pink-900'}`}>
               <div className="flex items-center gap-2.5">
-                {/* Ícone de camisa preenchida */}
-                <ShirtSVG
-                  size={30}
-                  fill={black?'#111827':'#ec4899'}
-                  stroke={black?'#4b5563':'#db2777'}
-                />
+                <ShirtSVG size={30} fill={black?'#111827':'#ec4899'} stroke={black?'#4b5563':'#db2777'}/>
                 <div>
                   <div className={`font-black text-sm tracking-wide ${black?'text-white':'text-pink-100'}`}>
                     TIME {black?'PRETO':'ROSA'}
@@ -473,21 +494,17 @@
                   <div className={`text-xs ${black?'text-gray-500':'text-pink-300'}`}>7 jogadores</div>
                 </div>
               </div>
-              {/* Apenas a MÉDIA no cabeçalho — sem notas individuais */}
               <div className="text-right">
                 <div className={`text-2xl font-black ${black?'text-white':'text-pink-200'}`}>{av}</div>
                 <div className="text-xs text-gray-500">média</div>
               </div>
             </div>
-            {/* Lista de jogadores: SOMENTE posição + nome (sem nota individual) */}
             <div className={`p-3 space-y-1.5 ${black?'bg-gray-950':'bg-pink-950'}`}>
               {team.map(p=>(
-                <div key={p.id}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
-                    black?'bg-gray-900':'bg-pink-900 bg-opacity-50'}`}>
+                <div key={p.id} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 ${
+                  black?'bg-gray-900':'bg-pink-900 bg-opacity-50'}`}>
                   <PBadge pos={p.position}/>
                   <span className="flex-1 text-sm font-medium truncate">{p.name}</span>
-                  {/* ⚠ Nota individual NÃO exibida aqui, conforme especificação */}
                 </div>
               ))}
             </div>
@@ -497,7 +514,6 @@
 
       return(
         <div className="p-4 space-y-4 fu">
-          {/* Badge de equilíbrio */}
           <div className="bg-gray-900 border border-gray-800 rounded-2xl px-4 py-3 flex items-center justify-between">
             <div>
               <div className="text-xs text-gray-500 mb-0.5">Equilíbrio técnico</div>
@@ -511,14 +527,11 @@
           <Card team={preto} black={true}/>
           <Card team={rosa}  black={false}/>
 
-          {/* Botões de ação */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Ressortear: usa os mesmos 14 jogadores do sorteio anterior */}
             <button onClick={onResort}
               className="bg-gray-800 hover:bg-gray-700 active:scale-95 rounded-xl py-3.5 text-sm font-bold flex items-center justify-center gap-2 transition-all">
               <IcoReset size={15}/> Ressortear
             </button>
-            {/* WhatsApp: abre com texto formatado e codificado */}
             <button onClick={handleWhatsApp}
               className="bg-green-700 hover:bg-green-600 active:scale-95 rounded-xl py-3.5 text-sm font-bold text-white flex items-center justify-center gap-2 transition-all">
               <span className="text-base">📲</span> WhatsApp
@@ -531,15 +544,12 @@
     /* ═══════════════════════════════════════════════════
        APP ROOT
     ═══════════════════════════════════════════════════ */
-    const _init = lsLoad(); // lê localStorage uma única vez
+    const _init = lsLoad();
 
     function App() {
       const [players,  setPlayers]  = useState(()=>_init.players  || []);
       const [selected, setSelected] = useState(()=>new Set(_init.selected || []));
       const [teams,    setTeams]    = useState(null);
-      /* lastSortedPlayers: guarda os 14 jogadores usados no último sorteio.
-         O botão "Ressortear" usa ESTE array (não re-deriva do selection),
-         garantindo que o re-sorteio sempre use os mesmos 14.               */
       const [lastSortedPlayers, setLastSortedPlayers] = useState([]);
       const [tab, setTab] = useState('elenco');
 
@@ -555,22 +565,26 @@
       const togAll = () =>
         setSelected(players.every(p=>selected.has(p.id)) ? new Set() : new Set(players.map(p=>p.id)));
 
-      /* Sorteio inicial: deriva os 14 a partir do selection e os salva */
+      /* Sorteio inicial: equilíbrio máximo */
       const doSort = () => {
         const sel = players.filter(p=>selected.has(p.id));
         if(sel.length!==14) return;
-        setLastSortedPlayers(sel);         // salva para o Ressortear
+        setLastSortedPlayers(sel);
         const r = sortear(sel);
         if(r){ setTeams(r); setTab('times'); }
       };
 
-      /* Ressortear: usa lastSortedPlayers (os mesmos 14 do sorteio original).
-         _ts:Date.now() em sortear() garante que o React detecte a mudança
-         de estado mesmo que os times resultantes sejam numericamente iguais. */
+      /* Ressortear: força ≥ 3 jogadores de linha trocando de time.
+         Compara g1 (→ Preto) com os jogadores de linha do Preto atual.
+         Penaliza similaridade e suaviza peso de nível para gerar
+         escalações visivelmente diferentes a cada clique.               */
       const doResort = () => {
-        if(lastSortedPlayers.length!==14) return;
-        const r = sortear(lastSortedPlayers);
-        if(r) setTeams(r); // r já contém _ts:Date.now() — re-render garantido
+        if(!teams || lastSortedPlayers.length!==14) return;
+        const prevPretoIds = new Set(
+          teams.preto.filter(p=>p.position!=='G').map(p=>p.id)
+        );
+        const r = sortearComDiff(lastSortedPlayers, prevPretoIds, 3);
+        if(r) setTeams(r);
       };
 
       const TABS = [
@@ -581,7 +595,6 @@
 
       return(
         <div className="min-h-screen bg-gray-950 max-w-md mx-auto flex flex-col">
-          {/* ── Cabeçalho ── */}
           <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-10">
             <div className="flex items-center gap-3 px-4 py-3">
               <RobotIcon/>
@@ -590,7 +603,6 @@
                 <p className="text-xs text-gray-500">{players.length} jogador{players.length!==1?'es':''} no elenco</p>
               </div>
             </div>
-            {/* Abas */}
             <div className="flex border-t border-gray-800">
               {TABS.map(({id,l,e})=>(
                 <button key={id} onClick={()=>setTab(id)}
@@ -601,8 +613,6 @@
               ))}
             </div>
           </header>
-
-          {/* ── Conteúdo ── */}
           <main className="flex-1 overflow-y-auto pb-6">
             {tab==='elenco' && <Elenco players={players} onAdd={addP} onDel={delP} onEdit={editP}/>}
             {tab==='pelada' && <Convo  players={players} selected={selected} onToggle={togP} onToggleAll={togAll} onSort={doSort}/>}
