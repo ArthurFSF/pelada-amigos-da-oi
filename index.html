@@ -2,8 +2,9 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
   <title>TiA — Amigos da Oi</title>
+
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -11,7 +12,7 @@
   <script src="https://unpkg.com/lucide-react@0.263.0/dist/umd/lucide-react.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Firebase SDK Modular v10 -->
+  <!-- Firebase Modular SDK v10 — exposto via window para o script Babel -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc }
@@ -30,55 +31,72 @@
       window.__db = getFirestore(app);
       window.__fsAPI = { collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc };
       window.dispatchEvent(new CustomEvent('firebase-ready'));
-    } catch(e) { window.__fbErr = e.message; window.dispatchEvent(new CustomEvent('firebase-error')); }
+    } catch(e) {
+      window.__fbErr = e.message;
+      window.dispatchEvent(new CustomEvent('firebase-error'));
+    }
   </script>
 
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%;background:#0a0f1e;color:#f1f5f9;overflow:hidden}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
     ::-webkit-scrollbar{width:3px}
     ::-webkit-scrollbar-thumb{background:#ec4899;border-radius:3px}
-    .glass{background:rgba(255,255,255,0.04);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.08)}
-    .glass-pink{background:rgba(236,72,153,0.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(236,72,153,0.2)}
-    .grad-pink{background:linear-gradient(135deg,#ec4899,#8b5cf6)}
-    .grad-field{background:linear-gradient(180deg,#14532d 0%,#166534 25%,#15803d 50%,#166534 75%,#14532d 100%)}
-    @keyframes fu{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .scr{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+    .glass{background:rgba(255,255,255,0.04);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.08)}
+    .g-pink{background:linear-gradient(135deg,#ec4899,#8b5cf6)}
+    .g-field{background:linear-gradient(180deg,#14532d 0%,#166534 30%,#15803d 60%,#14532d 100%)}
+    @keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
     .fu{animation:fu .3s ease}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .spin{animation:spin .8s linear infinite;display:inline-block}
-    @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(236,72,153,0)}50%{box-shadow:0 0 0 10px rgba(236,72,153,0)}}
-    .pulse-pink{animation:glow 2s ease-in-out infinite}
+    .spin{animation:spin .8s linear infinite;display:inline-block;line-height:1}
+    @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(236,72,153,0)}50%{box-shadow:0 0 18px 5px rgba(236,72,153,0.2)}}
+    .glow{animation:glow 2s ease-in-out infinite}
     input,select{color-scheme:dark;-webkit-appearance:none}
     .inp{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:10px 14px;font-size:13px;color:#f1f5f9;outline:none;transition:border-color .2s}
     .inp:focus{border-color:#ec4899}
-    .tab-scroll{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+    .inp:disabled{opacity:.5}
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const {useState,useEffect,useRef,useMemo} = React;
+/* ─────────────────────────────────────────────────────────
+   DIAGNÓSTICO E CORREÇÕES APLICADAS:
+   1. LIcon usa React.createElement (sem JSX dentro de closures)
+   2. Nenhum JSX dentro de objetos literais / arrays
+   3. var [x] = useState() em vez de const p/ evitar TDZ
+   4. Firebase async tratado por evento + estado, nunca bloqueante
+   5. try/catch em todo render crítico
+   ───────────────────────────────────────────────────────── */
 
-/* ═══════════════════════════════════════════════════
-   CONSTANTS
-═══════════════════════════════════════════════════ */
+const {useState, useEffect, useRef, useMemo} = React;
+
+/* ══════════════════════════════════════════════════
+   1. CONSTANTES
+══════════════════════════════════════════════════ */
 const POSITIONS = ['G','Z','AL','M','A'];
-const POS_LABEL = {G:'Goleiro',Z:'Zagueiro',AL:'Lateral',M:'Meio-campo',A:'Atacante'};
-const POS_COLOR = {
+const POS_LBL   = {G:'Goleiro',Z:'Zagueiro',AL:'Lateral',M:'Meio-campo',A:'Atacante'};
+const POS_CLR   = {
   G:{bg:'#f59e0b',tx:'#78350f'}, Z:{bg:'#3b82f6',tx:'#1e3a8a'},
   AL:{bg:'#f97316',tx:'#7c2d12'}, M:{bg:'#10b981',tx:'#064e3b'}, A:{bg:'#ef4444',tx:'#7f1d1d'}
 };
-const TAGS = {
+const TAGS_MAP = {
   G:[], Z:['Xerife','Aéreo','Construtor','Linha'],
   AL:['Raçudo','Cruzador','Velocista','Defensivo'],
   M:['Organizador','Destrutivo','Criativo','Box-to-Box'],
   A:['Artilheiro','Driblador','Velocista','Pivô']
 };
-const PERS = [{id:'Operário',e:'⚙️'},{id:'Fominha',e:'🦁'},{id:'Pilhado',e:'⚡'},{id:'Maestro',e:'🎯'},{id:'Resenha',e:'😄'}];
-const PERS_MAP = Object.fromEntries(PERS.map(p=>[p.id,p.e]));
-const ATTRS = ['fisico','defesa','tatico','construcao','habilidade','ataque'];
-const ATTR_LBL = {fisico:'Físico',defesa:'Defesa',tatico:'Tático',construcao:'Construção',habilidade:'Habilidade',ataque:'Ataque'};
+const PERS_LIST = [
+  {id:'Operário',e:'⚙️'},{id:'Fominha',e:'🦁'},
+  {id:'Pilhado', e:'⚡'},{id:'Maestro', e:'🎯'},{id:'Resenha',e:'😄'}
+];
+const PERS_EMOJI = {};
+PERS_LIST.forEach(function(p){ PERS_EMOJI[p.id]=p.e; });
+
+const ATTRS   = ['fisico','defesa','tatico','construcao','habilidade','ataque'];
+const ATTR_LB = {fisico:'Físico',defesa:'Defesa',tatico:'Tático',construcao:'Construção',habilidade:'Habilidade',ataque:'Ataque'};
 const WEIGHTS = {
   G:{defesa:.5,fisico:.3,tatico:.2},
   Z:{defesa:.4,fisico:.3,tatico:.2,construcao:.1},
@@ -86,508 +104,786 @@ const WEIGHTS = {
   M:{construcao:.35,tatico:.25,habilidade:.15,fisico:.15,defesa:.05,ataque:.05},
   A:{ataque:.4,habilidade:.25,fisico:.2,tatico:.1,construcao:.05}
 };
-const RTNG = Array.from({length:13},(_,i)=>10-i*.5); // 10→4 step 0.5
+
+// Rating 10→4, step 0.5 (DESCRESCENTE conforme requisito)
+const RTNG = [];
+for(var _i=0; _i<=12; _i++) RTNG.push(Math.round((10-_i*.5)*10)/10);
+
 const DEF_ATTRS = {fisico:7,defesa:7,tatico:7,construcao:7,habilidade:7,ataque:7};
 
-/* ═══════════════════════════════════════════════════
-   ALGORITHMS
-═══════════════════════════════════════════════════ */
-const calcOvr = (pos,attrs) =>
-  Object.entries(WEIGHTS[pos]||{}).reduce((s,[a,w])=>s+(attrs?.[a]||5)*w,0);
-
-function penalty(t1,t2) {
-  const ov1=t1.reduce((s,p)=>s+(p.ovr||0),0), ov2=t2.reduce((s,p)=>s+(p.ovr||0),0);
-  let ad=0;
-  for(const a of ATTRS){
-    const a1=t1.reduce((s,p)=>s+((p.attrs||{})[a]||5),0)/t1.length;
-    const a2=t2.reduce((s,p)=>s+((p.attrs||{})[a]||5),0)/t2.length;
-    ad+=Math.abs(a1-a2);
-  }
-  const tagConc=t=>{const m={};t.flatMap(p=>p.tags||[]).forEach(tg=>m[tg]=(m[tg]||0)+1);return Object.values(m).reduce((s,c)=>s+Math.max(0,c-1),0)};
-  const clash=t=>{const ps=t.map(p=>p.personality);return ps.includes('Fominha')&&ps.includes('Pilhado')?1:0};
-  return Math.abs(ov1-ov2)*10+ad*5+(tagConc(t1)+tagConc(t2))*2+(clash(t1)+clash(t2))*3;
+/* ══════════════════════════════════════════════════
+   2. ALGORITMOS
+══════════════════════════════════════════════════ */
+function calcOvr(pos, attrs) {
+  const w = WEIGHTS[pos] || {};
+  const a = attrs || {};
+  return Object.keys(w).reduce(function(s,k){ return s+(a[k]||5)*w[k]; },0);
 }
 
-function geneticSort(sel,ppt) {
-  const gks=sel.filter(p=>p.position==='G'), nonGk=sel.filter(p=>p.position!=='G');
+function calcPenalty(t1, t2) {
+  let ov1=0, ov2=0;
+  t1.forEach(function(p){ ov1+=(p.ovr||0); });
+  t2.forEach(function(p){ ov2+=(p.ovr||0); });
+  let attrD=0;
+  ATTRS.forEach(function(ak){
+    let s1=0, s2=0;
+    t1.forEach(function(p){ s1+=((p.attrs||{})[ak]||5); });
+    t2.forEach(function(p){ s2+=((p.attrs||{})[ak]||5); });
+    attrD+=Math.abs(s1/t1.length - s2/t2.length);
+  });
+  function tagConc(t){
+    const m={};
+    t.forEach(function(p){ (p.tags||[]).forEach(function(tg){ m[tg]=(m[tg]||0)+1; }); });
+    return Object.values(m).reduce(function(s,c){ return s+Math.max(0,c-1); },0);
+  }
+  function clash(t){
+    const ps=t.map(function(p){ return p.personality; });
+    return ps.indexOf('Fominha')>=0 && ps.indexOf('Pilhado')>=0 ? 1 : 0;
+  }
+  return Math.abs(ov1-ov2)*10 + attrD*5 + (tagConc(t1)+tagConc(t2))*2 + (clash(t1)+clash(t2))*3;
+}
+
+function geneticSort(sel, ppt) {
+  const gks   = sel.filter(function(p){ return p.position==='G'; });
+  const nonGk = sel.filter(function(p){ return p.position!=='G'; });
   if(gks.length<2) return null;
-  const [gk1,gk2]=gks, linha=[...nonGk,...gks.slice(2)], lpt=ppt-1;
-  if(linha.length!==lpt*2) return null;
-  let bs=Infinity,bsp=null;
+  const gk1=gks[0], gk2=gks[1];
+  const linha = nonGk.concat(gks.slice(2));
+  const lpt   = ppt-1;
+  if(linha.length !== lpt*2) return null;
+
+  let best=null, bs=Infinity;
   for(let i=0;i<1000;i++){
-    const sh=[...linha].sort(()=>Math.random()-.5);
-    const t1=sh.slice(0,lpt),t2=sh.slice(lpt);
-    const sc=penalty([gk1,...t1],[gk2,...t2]);
-    if(sc<bs){bs=sc;bsp={t1,t2}}
+    const sh = linha.slice().sort(function(){ return Math.random()-.5; });
+    const t1=sh.slice(0,lpt), t2=sh.slice(lpt);
+    const sc=calcPenalty([gk1].concat(t1),[gk2].concat(t2));
+    if(sc<bs){ bs=sc; best={t1:t1,t2:t2}; }
   }
-  if(!bsp) return null;
-  const ord={G:0,Z:1,AL:2,M:3,A:4},srt=a=>[...a].sort((x,y)=>ord[x.position]-ord[y.position]);
-  const [gkP,gkR]=Math.random()>.5?[gk1,gk2]:[gk2,gk1];
-  const preto=srt([gkP,...bsp.t1]),rosa=srt([gkR,...bsp.t2]);
-  const sp=preto.reduce((s,p)=>s+p.ovr,0),sr=rosa.reduce((s,p)=>s+p.ovr,0);
-  return{preto,rosa,avgP:(sp/preto.length).toFixed(2),avgR:(sr/rosa.length).toFixed(2),diff:Math.abs(sp-sr).toFixed(2),score:bs,_ts:Date.now()};
+  if(!best) return null;
+
+  const ord={G:0,Z:1,AL:2,M:3,A:4};
+  function srt(arr){ return arr.slice().sort(function(x,y){ return (ord[x.position]||9)-(ord[y.position]||9); }); }
+  const gkP = Math.random()>.5 ? gk1 : gk2;
+  const gkR = gkP===gk1 ? gk2 : gk1;
+  const preto=srt([gkP].concat(best.t1));
+  const rosa =srt([gkR].concat(best.t2));
+  let sp=0, sr=0;
+  preto.forEach(function(p){ sp+=(p.ovr||0); });
+  rosa.forEach(function(p){  sr+=(p.ovr||0); });
+  return {
+    preto:preto, rosa:rosa,
+    avgP:(sp/preto.length).toFixed(2), avgR:(sr/rosa.length).toFixed(2),
+    diff:Math.abs(sp-sr).toFixed(2), score:bs, _ts:Date.now()
+  };
 }
 
-/* ═══════════════════════════════════════════════════
-   ICONS
-═══════════════════════════════════════════════════ */
-const LR=window.LucideReact||{};
-const mk=(n,fb)=>p=>{const C=LR[n];return C?<C {...p}/>:<span style={{fontSize:'0.85em'}}>{fb}</span>};
-const IAdd=mk('UserPlus','+'),IDel=mk('Trash2','🗑'),IEdit=mk('Edit2','✏'),IChk=mk('Check','✓');
-const IX=mk('X','×'),IShuf=mk('Shuffle','🔀'),IReset=mk('RotateCcw','↺'),IAlert=mk('AlertCircle','⚠');
-const IZap=mk('Zap','⚡'),ILoad=mk('Loader2','⟳'),ISearch=mk('Search','🔍'),IDL=mk('Download','⬇');
-const IChkSq=mk('CheckSquare','☑'),ISq=mk('Square','☐'),ISliders=mk('SlidersHorizontal','≡');
-const IUsers=mk('Users','👥'),IShield=mk('Shield','🛡'),ITrophy=mk('Trophy','🏆'),IRepeat=mk('ArrowLeftRight','↔');
+/* ══════════════════════════════════════════════════
+   3. LIcon  ← PONTO CRÍTICO: usa React.createElement
+              para evitar problemas de parse JSX em closures
+══════════════════════════════════════════════════ */
+const _LR = window.LucideReact || {};
+function LIcon(props) {
+  const C = _LR[props.name];
+  if(C) return React.createElement(C, {size:props.size||16, style:props.style, color:props.color});
+  return React.createElement('span', {style:props.style}, props.fb||'•');
+}
 
-/* ═══════════════════════════════════════════════════
-   MICRO COMPONENTS
-═══════════════════════════════════════════════════ */
-const Spin=({s=14})=><span className="spin" style={{color:'#ec4899',lineHeight:1}}><ILoad size={s}/></span>;
-const Pos=({pos,xs})=>{const c=POS_COLOR[pos]||{};const d=xs?20:26;const f=xs?8:10;
-  return <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:d,height:d,borderRadius:'50%',background:c.bg,color:c.tx,fontSize:f,fontWeight:900,flexShrink:0}}>{pos}</span>};
-const Ovr=({v})=>{const c=v>=8?'#10b981':v>=6.5?'#f59e0b':'#ef4444';
-  return <span style={{color:c,fontWeight:900,fontSize:13}}>{(+v).toFixed(1)}</span>};
-
-/* ═══════════════════════════════════════════════════
-   PLAYER FORM
-═══════════════════════════════════════════════════ */
-function PlayerForm({init,onDone,onCancel,saving}){
-  const [nm,setNm]=useState(init?.name||'');
-  const [pos,setPos]=useState(init?.position||'M');
-  const [pers,setPers]=useState(init?.personality||'Operário');
-  const [tags,setTags]=useState(init?.tags||[]);
-  const [attrs,setAttrs]=useState(init?.attrs||{...DEF_ATTRS});
-  const [err,setErr]=useState('');
-  const ovr=useMemo(()=>calcOvr(pos,attrs),[pos,attrs]);
-  useEffect(()=>{if(!init)setTags([]);},[pos]);
-  const setA=(k,v)=>setAttrs(a=>({...a,[k]:v}));
-  const togTag=t=>setTags(prev=>prev.includes(t)?prev.filter(x=>x!==t):prev.length>=3?prev:[...prev,t]);
-  const submit=()=>{
-    if(!nm.trim()){setErr('Digite o nome.');return}
-    if(saving)return;
-    onDone({name:nm.trim(),position:pos,personality:pers,tags,attrs,ovr});
-  };
-  const wAttrs=[...ATTRS].sort((a,b)=>(WEIGHTS[pos]?.[b]||0)-(WEIGHTS[pos]?.[a]||0));
-  return(
-    <div className="glass rounded-2xl p-4 space-y-3 fu">
-      <input value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submit()}
-        placeholder="Nome do jogador" maxLength={28} className="inp" disabled={saving}/>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        <div>
-          <div style={{fontSize:10,color:'#64748b',marginBottom:4}}>POSIÇÃO</div>
-          <select value={pos} onChange={e=>setPos(e.target.value)} className="inp" disabled={saving}>
-            {POSITIONS.map(p=><option key={p} value={p}>{p} – {POS_LABEL[p]}</option>)}
-          </select>
-        </div>
-        <div>
-          <div style={{fontSize:10,color:'#64748b',marginBottom:4}}>PERSONALIDADE</div>
-          <select value={pers} onChange={e=>setPers(e.target.value)} className="inp" disabled={saving}>
-            {PERS.map(p=><option key={p.id} value={p.id}>{p.e} {p.id}</option>)}
-          </select>
-        </div>
-      </div>
-      {TAGS[pos].length>0&&(
-        <div>
-          <div style={{fontSize:10,color:'#64748b',marginBottom:6}}>TAGS <span style={{color:'#475569'}}>(máx 3)</span></div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-            {TAGS[pos].map(t=>{const s=tags.includes(t);return(
-              <button key={t} onClick={()=>togTag(t)} style={{padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s',background:s?'#ec4899':'rgba(255,255,255,0.05)',color:s?'#fff':'#94a3b8',border:`1px solid ${s?'#ec4899':'rgba(255,255,255,0.1)'}`}}>{t}</button>
-            )})}
-          </div>
-        </div>
-      )}
-      <div>
-        <div style={{fontSize:10,color:'#64748b',marginBottom:6}}>ATRIBUTOS</div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-          {wAttrs.map(a=>{const w=WEIGHTS[pos]?.[a]||0;return(
-            <div key={a}>
-              <div style={{fontSize:9,color:w>.15?'#ec4899':w>0?'#8b5cf6':'#475569',fontWeight:w?.15?700:400,marginBottom:3}}>
-                {ATTR_LBL[a]}{w>0?` ×${w}`:''}</div>
-              <select value={attrs[a]} onChange={e=>setA(a,parseFloat(e.target.value))} className="inp" style={{padding:'7px 10px',fontSize:12}} disabled={saving}>
-                {RTNG.map(v=><option key={v} value={v}>{v%1===0?v+'.0':v}</option>)}
-              </select>
-            </div>
-          )})}
-        </div>
-      </div>
-      {/* Live OVR */}
-      <div style={{background:'rgba(236,72,153,0.07)',border:'1px solid rgba(236,72,153,0.18)',borderRadius:12,padding:'10px 14px',textAlign:'center'}}>
-        <div style={{fontSize:9,color:'#94a3b8',letterSpacing:'0.08em'}}>OVERALL PONDERADO</div>
-        <div style={{fontSize:30,fontWeight:900,color:'#ec4899',lineHeight:1.1}}>{ovr.toFixed(1)}</div>
-        <div style={{fontSize:9,color:'#475569',marginTop:2}}>
-          {Object.entries(WEIGHTS[pos]||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k,w])=>`${ATTR_LBL[k].slice(0,3)}×${w}`).join(' + ')}
-        </div>
-      </div>
-      {err&&<div style={{fontSize:11,color:'#f87171',display:'flex',gap:5,alignItems:'center'}}><IAlert size={11}/>{err}</div>}
-      <div style={{display:'flex',gap:8}}>
-        <button onClick={onCancel} style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:11,fontSize:12,fontWeight:700,color:'#94a3b8',cursor:'pointer'}}>Cancelar</button>
-        <button onClick={submit} disabled={saving} className="grad-pink" style={{flex:2,border:'none',borderRadius:12,padding:11,fontSize:13,fontWeight:900,color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-          {saving?<><Spin s={12}/>Salvando...</>:<><IChk size={12}/>{init?'Salvar':'Adicionar'}</>}
-        </button>
-      </div>
-    </div>
+/* ══════════════════════════════════════════════════
+   4. COMPONENTES BASE
+══════════════════════════════════════════════════ */
+function Spin({size}) {
+  return (
+    <span className="spin" style={{color:'#ec4899'}}>
+      <LIcon name="Loader2" size={size||14} fb="⟳"/>
+    </span>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   ELENCO TAB
-═══════════════════════════════════════════════════ */
-function ElencoTab({players,onAdd,onDel,onEdit,saving,loading}){
-  const [form,setForm]=useState(false);
-  const [editing,setEditing]=useState(null);
-  const [fil,setFil]=useState('ALL');
-  const cnt=POSITIONS.reduce((a,p)=>({...a,[p]:players.filter(x=>x.position===p).length}),{});
-  const list=fil==='ALL'?players:players.filter(p=>p.position===fil);
-  return(
-    <div className="tab-scroll" style={{padding:16,paddingBottom:96,display:'flex',flexDirection:'column',gap:12}}>
-      {/* Position counters */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>
-        {POSITIONS.map(p=>(
-          <button key={p} onClick={()=>setFil(f=>f===p?'ALL':p)} style={{background:fil===p?'rgba(236,72,153,0.15)':'rgba(255,255,255,0.04)',border:`1px solid ${fil===p?'rgba(236,72,153,0.4)':'rgba(255,255,255,0.07)'}`,borderRadius:12,padding:'8px 4px',cursor:'pointer',textAlign:'center',transition:'all .15s'}}>
-            <div style={{fontSize:20,fontWeight:900,color:fil===p?'#ec4899':'#f1f5f9'}}>{cnt[p]}</div>
-            <Pos pos={p} xs/>
-          </button>
-        ))}
+function PosBadge({pos, sm}) {
+  const c = POS_CLR[pos] || {bg:'#64748b',tx:'#0f172a'};
+  const d = sm ? 20 : 26;
+  const f = sm ? 8  : 10;
+  return (
+    <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:d,height:d,borderRadius:'50%',background:c.bg,color:c.tx,fontSize:f,fontWeight:900,flexShrink:0}}>
+      {pos}
+    </span>
+  );
+}
+
+function OvrBadge({value}) {
+  const v  = parseFloat(value)||0;
+  const cl = v>=8 ? '#10b981' : v>=6.5 ? '#f59e0b' : '#ef4444';
+  return <span style={{color:cl,fontWeight:900,fontSize:13}}>{v.toFixed(1)}</span>;
+}
+
+/* ══════════════════════════════════════════════════
+   5. PLAYER FORM  (cadastro / edição)
+══════════════════════════════════════════════════ */
+function PlayerForm({initial, onSubmit, onCancel, saving}) {
+  const init = initial || {};
+  const [name,  setName]  = useState(init.name||'');
+  const [pos,   setPos]   = useState(init.position||'M');
+  const [pers,  setPers]  = useState(init.personality||'Operário');
+  const [tags,  setTags]  = useState(init.tags||[]);
+  const [attrs, setAttrs] = useState(Object.assign({},DEF_ATTRS,init.attrs||{}));
+  const [err,   setErr]   = useState('');
+
+  useEffect(function(){ if(!initial) setTags([]); }, [pos]);
+
+  const ovr = useMemo(function(){ return calcOvr(pos,attrs); }, [pos,attrs]);
+
+  function setA(key,val){ setAttrs(function(a){ return Object.assign({},a,{[key]:val}); }); }
+  function togTag(tag){
+    setTags(function(prev){
+      if(prev.indexOf(tag)>=0) return prev.filter(function(t){ return t!==tag; });
+      if(prev.length>=3) return prev;
+      return prev.concat([tag]);
+    });
+  }
+  function submit(){
+    if(!name.trim()){ setErr('Digite o nome.'); return; }
+    if(saving) return;
+    setErr('');
+    onSubmit({name:name.trim(),position:pos,personality:pers,tags:tags,attrs:attrs,ovr:ovr});
+  }
+
+  const posW  = WEIGHTS[pos] || {};
+  const sAttrs = ATTRS.slice().sort(function(a,b){ return (posW[b]||0)-(posW[a]||0); });
+  const topW   = Object.keys(posW).sort(function(a,b){ return posW[b]-posW[a]; }).slice(0,3);
+  const ovrTxt = topW.map(function(k){ return ATTR_LB[k].slice(0,3)+'×'+posW[k]; }).join(' + ');
+
+  return (
+    <div className="glass fu" style={{borderRadius:16,padding:16,display:'flex',flexDirection:'column',gap:12}}>
+      <input value={name} onChange={function(e){setName(e.target.value);}} onKeyDown={function(e){if(e.key==='Enter')submit();}}
+        placeholder="Nome do jogador" maxLength={28} disabled={saving} className="inp"/>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div>
+          <div style={{fontSize:10,color:'#64748b',marginBottom:4,fontWeight:600}}>POSIÇÃO</div>
+          <select value={pos} onChange={function(e){setPos(e.target.value);}} disabled={saving} className="inp">
+            {POSITIONS.map(function(p){ return <option key={p} value={p}>{p} — {POS_LBL[p]}</option>; })}
+          </select>
+        </div>
+        <div>
+          <div style={{fontSize:10,color:'#64748b',marginBottom:4,fontWeight:600}}>PERSONALIDADE</div>
+          <select value={pers} onChange={function(e){setPers(e.target.value);}} disabled={saving} className="inp">
+            {PERS_LIST.map(function(p){ return <option key={p.id} value={p.id}>{p.e} {p.id}</option>; })}
+          </select>
+        </div>
       </div>
-      {/* Form */}
-      {form?<PlayerForm onDone={d=>{onAdd(d);setForm(false)}} onCancel={()=>setForm(false)} saving={saving}/>
-       :editing?<PlayerForm init={editing} onDone={d=>{onEdit({id:editing.id,...d});setEditing(null)}} onCancel={()=>setEditing(null)} saving={saving}/>
-       :<button onClick={()=>setForm(true)} className="grad-pink" style={{border:'none',borderRadius:14,padding:13,fontSize:13,fontWeight:900,color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-          <IAdd size={15}/> CADASTRAR JOGADOR
-        </button>}
-      {/* Player list */}
-      {loading?<div style={{textAlign:'center',padding:40,color:'#475569'}}><Spin s={22}/></div>
-       :list.map(p=>(
-        <div key={p.id} className="glass rounded-xl" style={{padding:'12px 14px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <Pos pos={p.position}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
-              <div style={{fontSize:10,color:'#64748b',display:'flex',gap:5,alignItems:'center',flexWrap:'wrap',marginTop:2}}>
-                <span>{PERS_MAP[p.personality]||''} {p.personality}</span>
-                {(p.tags||[]).map(t=><span key={t} style={{background:'rgba(255,255,255,0.07)',borderRadius:20,padding:'1px 7px',border:'1px solid rgba(255,255,255,0.08)'}}>{t}</span>)}
-              </div>
-            </div>
-            <Ovr v={p.ovr||0}/>
-            <div style={{display:'flex',gap:10,marginLeft:6}}>
-              <button onClick={()=>setEditing(p)} disabled={saving} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',padding:0,lineHeight:1}}><IEdit size={14}/></button>
-              <button onClick={()=>onDel(p.id)} disabled={saving} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',padding:0,lineHeight:1}}><IDel size={14}/></button>
-            </div>
-          </div>
-          {/* Attr mini-bars */}
-          <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4,marginTop:10}}>
-            {ATTRS.map(a=>{const v=(p.attrs||{})[a]||5,w=WEIGHTS[p.position]?.[a]||0;
-              return(<div key={a} style={{textAlign:'center'}}>
-                <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.06)',overflow:'hidden',marginBottom:2}}>
-                  <div style={{height:'100%',width:`${((v-4)/6)*100}%`,background:w>.2?'#ec4899':w>0?'#8b5cf6':'#334155',borderRadius:2}}/>
-                </div>
-                <div style={{fontSize:8,color:'#475569'}}>{ATTR_LBL[a].slice(0,3)}</div>
-                <div style={{fontSize:8,color:'#64748b'}}>{v}</div>
-              </div>);
+
+      {(TAGS_MAP[pos]||[]).length>0 && (
+        <div>
+          <div style={{fontSize:10,color:'#64748b',marginBottom:6,fontWeight:600}}>TAGS <span style={{fontWeight:400,color:'#334155'}}>(máx. 3)</span></div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+            {(TAGS_MAP[pos]||[]).map(function(tag){
+              const sel = tags.indexOf(tag)>=0;
+              return (
+                <button key={tag} onClick={function(){togTag(tag);}} style={{padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s',background:sel?'#ec4899':'rgba(255,255,255,0.05)',color:sel?'#fff':'#94a3b8',border:'1px solid '+(sel?'#ec4899':'rgba(255,255,255,0.1)')}}>
+                  {tag}
+                </button>
+              );
             })}
           </div>
         </div>
-      ))}
-      {!loading&&list.length===0&&<div style={{textAlign:'center',padding:'48px 0',color:'#334155',fontSize:13}}>{players.length===0?'⚽ Nenhum jogador cadastrado.':'Nenhum jogador nesta posição.'}</div>}
+      )}
+
+      <div>
+        <div style={{fontSize:10,color:'#64748b',marginBottom:6,fontWeight:600}}>ATRIBUTOS</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {sAttrs.map(function(a){
+            const w = posW[a]||0;
+            const barW = ((attrs[a]-4)/6*100)+'%';
+            const barC = w>.2 ? '#ec4899' : w>0 ? '#8b5cf6' : '#334155';
+            return (
+              <div key={a}>
+                <div style={{fontSize:9,marginBottom:3,color:w>.2?'#ec4899':w>0?'#8b5cf6':'#475569',fontWeight:w>0?700:400}}>
+                  {ATTR_LB[a]}{w>0?' ×'+w:''}
+                </div>
+                <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.07)',overflow:'hidden',marginBottom:4}}>
+                  <div style={{height:'100%',width:barW,background:barC,borderRadius:2}}/>
+                </div>
+                <select value={attrs[a]} onChange={function(e){setA(a,parseFloat(e.target.value));}} disabled={saving} className="inp" style={{padding:'6px 10px',fontSize:12}}>
+                  {RTNG.map(function(v){ return <option key={v} value={v}>{v%1===0?v+'.0':''+v}</option>; })}
+                </select>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Overall em tempo real — exibido APENAS no formulário */}
+      <div style={{background:'rgba(236,72,153,0.07)',border:'1px solid rgba(236,72,153,0.18)',borderRadius:12,padding:'10px 14px',textAlign:'center'}}>
+        <div style={{fontSize:9,color:'#94a3b8',letterSpacing:'0.08em',marginBottom:2}}>OVERALL PONDERADO</div>
+        <div style={{fontSize:28,fontWeight:900,color:'#ec4899',lineHeight:1.1}}>{ovr.toFixed(1)}</div>
+        <div style={{fontSize:9,color:'#475569',marginTop:2}}>{ovrTxt}</div>
+      </div>
+
+      {err!=='' && (
+        <div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'#f87171',background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',borderRadius:10,padding:'7px 11px'}}>
+          <LIcon name="AlertCircle" size={11} fb="⚠"/> {err}
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:8}}>
+        <button onClick={onCancel} disabled={saving} style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'11px',fontSize:12,fontWeight:700,color:'#94a3b8',cursor:'pointer'}}>
+          Cancelar
+        </button>
+        <button onClick={submit} disabled={saving} className="g-pink" style={{flex:2,border:'none',borderRadius:12,padding:'11px',fontSize:13,fontWeight:900,color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+          {saving ? <Spin size={12}/> : <LIcon name="Check" size={13} fb="✓"/>}
+          {saving ? 'Salvando...' : (initial?'Salvar':'Adicionar')}
+        </button>
+      </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   CONVO TAB
-═══════════════════════════════════════════════════ */
-function ConvoTab({players,selected,onToggle,onToggleAll,onSort,ppt,setPpt,loading,isSorting}){
-  const [q,setQ]=useState('');
-  const sel=players.filter(p=>selected.has(p.id));
-  const total=sel.length,gkN=sel.filter(p=>p.position==='G').length,lineN=total-gkN;
-  const needed=ppt*2,lineNeed=needed-2,canSort=total===needed&&gkN===2;
-  const pct=Math.min((total/needed)*100,100);
-  const barC=total>needed?'#ef4444':total===needed?'#10b981':'#ec4899';
-  const groups=POSITIONS.reduce((a,pos)=>{const g=players.filter(p=>p.position===pos&&p.name.toLowerCase().includes(q.toLowerCase()));if(g.length)a[pos]=g;return a},{});
-  const Badge=({ok,label})=>(
-    <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:20,background:ok?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',border:`1px solid ${ok?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'}`,color:ok?'#10b981':'#f87171'}}>
-      {ok?'🟢':'🔴'} {label}
+/* ══════════════════════════════════════════════════
+   6. ELENCO TAB
+══════════════════════════════════════════════════ */
+function ElencoTab({players,onAdd,onDel,onEdit,saving,loading}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editing,  setEditing]  = useState(null);
+  const [filter,   setFilter]   = useState('ALL');
+
+  const cnt = {};
+  POSITIONS.forEach(function(p){ cnt[p]=players.filter(function(x){ return x.position===p; }).length; });
+  const list = filter==='ALL' ? players : players.filter(function(p){ return p.position===filter; });
+
+  return (
+    <div className="scr fu" style={{padding:16,paddingBottom:96,display:'flex',flexDirection:'column',gap:12}}>
+
+      {/* Position counters */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>
+        {POSITIONS.map(function(p){
+          const active = filter===p;
+          return (
+            <button key={p} onClick={function(){ setFilter(function(f){ return f===p?'ALL':p; }); }} className="glass" style={{borderRadius:12,padding:'8px 4px',cursor:'pointer',textAlign:'center',background:active?'rgba(236,72,153,0.12)':undefined,border:active?'1px solid rgba(236,72,153,0.3)':undefined}}>
+              <div style={{fontSize:20,fontWeight:900,color:active?'#ec4899':'#f1f5f9'}}>{cnt[p]||0}</div>
+              <PosBadge pos={p} sm/>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Form or Add Button */}
+      {showForm ? (
+        <PlayerForm onSubmit={function(d){onAdd(d);setShowForm(false);}} onCancel={function(){setShowForm(false);}} saving={saving}/>
+      ) : editing ? (
+        <PlayerForm initial={editing} onSubmit={function(d){onEdit(Object.assign({id:editing.id},d));setEditing(null);}} onCancel={function(){setEditing(null);}} saving={saving}/>
+      ) : (
+        <button onClick={function(){setShowForm(true);}} className="g-pink" style={{border:'none',borderRadius:14,padding:13,fontSize:13,fontWeight:900,color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          <LIcon name="UserPlus" size={15} fb="+"/> CADASTRAR JOGADOR
+        </button>
+      )}
+
+      {/* Player list */}
+      {loading ? (
+        <div style={{textAlign:'center',padding:40,color:'#475569'}}>
+          <Spin size={22}/>
+          <div style={{marginTop:8,fontSize:12}}>Carregando elenco...</div>
+        </div>
+      ) : list.length===0 ? (
+        <div style={{textAlign:'center',padding:'48px 0',color:'#334155',fontSize:13}}>
+          {players.length===0?'⚽ Nenhum jogador cadastrado ainda.':'Sem jogadores nesta posição.'}
+        </div>
+      ) : list.map(function(p){
+        const persText = (PERS_EMOJI[p.personality]||'')+' '+(p.personality||'');
+        return (
+          <div key={p.id} className="glass" style={{borderRadius:14,padding:'12px 14px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <PosBadge pos={p.position}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                <div style={{fontSize:10,color:'#64748b',display:'flex',gap:5,alignItems:'center',flexWrap:'wrap',marginTop:2}}>
+                  <span>{persText}</span>
+                  {(p.tags||[]).map(function(t){ return <span key={t} style={{background:'rgba(255,255,255,0.07)',borderRadius:20,padding:'1px 6px',border:'1px solid rgba(255,255,255,0.08)',fontSize:9}}>{t}</span>; })}
+                </div>
+              </div>
+              <OvrBadge value={p.ovr||0}/>
+              <div style={{display:'flex',gap:10,marginLeft:6}}>
+                <button onClick={function(){setEditing(p);}} disabled={saving} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',padding:0,lineHeight:1}}>
+                  <LIcon name="Edit2" size={14} fb="✏"/>
+                </button>
+                <button onClick={function(){onDel(p.id);}} disabled={saving} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',padding:0,lineHeight:1}}>
+                  <LIcon name="Trash2" size={14} fb="🗑"/>
+                </button>
+              </div>
+            </div>
+            {/* Attr mini-bars */}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4,marginTop:10}}>
+              {ATTRS.map(function(a){
+                const v = ((p.attrs||{})[a])||5;
+                const w = (WEIGHTS[p.position]||{})[a]||0;
+                const bc = w>.2?'#ec4899':w>0?'#8b5cf6':'#334155';
+                return (
+                  <div key={a} style={{textAlign:'center'}}>
+                    <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.06)',overflow:'hidden',marginBottom:2}}>
+                      <div style={{height:'100%',width:((v-4)/6*100)+'%',background:bc,borderRadius:2}}/>
+                    </div>
+                    <div style={{fontSize:8,color:'#475569'}}>{ATTR_LB[a].slice(0,3)}</div>
+                    <div style={{fontSize:8,color:'#64748b'}}>{v}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
-  return(
+}
+
+/* ══════════════════════════════════════════════════
+   7. CONVO TAB
+══════════════════════════════════════════════════ */
+function ConvoTab({players,selected,onToggle,onToggleAll,onSort,ppt,setPpt,loading,sorting}) {
+  const [search, setSearch] = useState('');
+
+  const sel    = players.filter(function(p){ return selected.has(p.id); });
+  const total  = sel.length;
+  const gkN    = sel.filter(function(p){ return p.position==='G'; }).length;
+  const lineN  = total-gkN;
+  const needed = ppt*2;
+  const lineNd = needed-2;
+  const canGo  = total===needed && gkN===2 && !sorting;
+  const pct    = Math.min((total/needed)*100,100);
+  const barC   = total>needed ? '#ef4444' : total===needed ? '#10b981' : '#ec4899';
+  const allSel = players.length>0 && players.every(function(p){ return selected.has(p.id); });
+
+  const filtered = players.filter(function(p){ return p.name.toLowerCase().indexOf(search.toLowerCase())>=0; });
+
+  // Smart badge helper
+  function StatusBadge(props) {
+    const ok = props.ok;
+    const bg = ok?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)';
+    const bd = ok?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)';
+    const cl = ok?'#10b981':'#f87171';
+    return (
+      <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:20,background:bg,border:'1px solid '+bd,color:cl}}>
+        {ok?'🟢':'🔴'} {props.label}
+      </div>
+    );
+  }
+
+  return (
     <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
-      {/* Controls */}
+      {/* Fixed controls */}
       <div style={{flexShrink:0,padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
-        {/* ppt */}
-        <div className="glass rounded-xl" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px'}}>
-          <ISliders size={13} style={{color:'#ec4899',flexShrink:0}}/>
+        {/* PPT stepper */}
+        <div className="glass" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:14}}>
+          <LIcon name="SlidersHorizontal" size={13} fb="≡"/>
           <span style={{fontSize:12,color:'#94a3b8',flex:1}}>Jogadores por time</span>
-          <button onClick={()=>setPpt(v=>Math.max(5,v-1))} style={{width:26,height:26,borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'white',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+          <button onClick={function(){setPpt(function(v){return Math.max(5,v-1);});}} style={{width:27,height:27,borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'white',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
           <span style={{fontWeight:900,fontSize:18,color:'#ec4899',width:20,textAlign:'center'}}>{ppt}</span>
-          <button onClick={()=>setPpt(v=>Math.min(11,v+1))} style={{width:26,height:26,borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'white',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+          <button onClick={function(){setPpt(function(v){return Math.min(11,v+1);});}} style={{width:27,height:27,borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'white',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
         </div>
-        {/* Smart badges */}
+
+        {/* Status badges */}
         <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
-          <Badge ok={gkN===2} label={`Goleiros ${gkN}/2`}/>
-          <Badge ok={lineN===lineNeed} label={`Linha ${lineN}/${lineNeed}`}/>
-          <Badge ok={total===needed} label={`Total ${total}/${needed}`}/>
+          <StatusBadge ok={gkN===2}      label={'Goleiros '+gkN+'/2'}/>
+          <StatusBadge ok={lineN===lineNd} label={'Linha '+lineN+'/'+lineNd}/>
+          <StatusBadge ok={total===needed} label={'Total '+total+'/'+needed}/>
         </div>
+
         {/* Progress */}
         <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.06)',overflow:'hidden'}}>
-          <div style={{height:'100%',width:`${pct}%`,background:barC,transition:'width .3s,background .3s'}}/>
+          <div style={{height:'100%',width:pct+'%',background:barC,transition:'width .3s,background .3s'}}/>
         </div>
-        {/* Sort */}
-        <button onClick={()=>canSort&&!isSorting&&onSort()} disabled={!canSort||isSorting} className={canSort&&!isSorting?'grad-pink pulse-pink':''} style={{border:'none',borderRadius:14,padding:14,fontSize:13,fontWeight:900,cursor:canSort&&!isSorting?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',gap:8,background:canSort&&!isSorting?undefined:'rgba(255,255,255,0.04)',color:canSort&&!isSorting?'white':'#334155'}}>
-          {isSorting?<><Spin s={16}/>Processando 1000 permutações...</>:<><IShuf size={16}/>SORTEAR {needed} JOGADORES</>}
+
+        {/* Sort button */}
+        <button onClick={function(){if(canGo)onSort();}} disabled={!canGo} className={canGo?'g-pink glow':''} style={{border:'none',borderRadius:14,padding:14,fontSize:13,fontWeight:900,cursor:canGo?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:canGo?'white':'#334155',background:canGo?undefined:'rgba(255,255,255,0.04)'}}>
+          {sorting ? <Spin size={16}/> : <LIcon name="Shuffle" size={16} fb="🔀"/>}
+          {sorting ? 'Processando 1.000 permutações...' : 'SORTEAR '+needed+' JOGADORES'}
         </button>
+
         {/* Search */}
         <div style={{position:'relative'}}>
-          <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#475569'}}><ISearch size={13}/></span>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar jogador…" className="inp" style={{paddingLeft:32}}/>
+          <span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#475569',lineHeight:1}}>
+            <LIcon name="Search" size={13} fb="🔍"/>
+          </span>
+          <input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="Buscar jogador…" className="inp" style={{paddingLeft:32}}/>
         </div>
+
         {/* Toggle all */}
-        <button onClick={onToggleAll} style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#475569',background:'none',border:'none',cursor:'pointer'}}>
-          {players.every(p=>selected.has(p.id))?<IChkSq size={12}/>:<ISq size={12}/>}
-          {players.every(p=>selected.has(p.id))?'Desmarcar todos':'Marcar todos'}
+        <button onClick={onToggleAll} style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#475569',background:'none',border:'none',cursor:'pointer',padding:'2px 0'}}>
+          <LIcon name={allSel?'CheckSquare':'Square'} size={12} fb={allSel?'☑':'☐'}/>
+          {allSel?'Desmarcar todos':'Marcar todos'}
         </button>
       </div>
-      {/* Player list */}
-      <div className="tab-scroll" style={{flex:1,padding:'0 16px',paddingBottom:80}}>
-        {loading?<div style={{textAlign:'center',padding:32,color:'#475569'}}><Spin s={18}/></div>
-         :Object.entries(groups).map(([pos,grp])=>{
-          const sc=grp.filter(p=>selected.has(p.id)).length;
-          return(<div key={pos} style={{marginBottom:14}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-              <Pos pos={pos} xs/><span style={{fontSize:9,fontWeight:800,color:'#334155',letterSpacing:'0.06em'}}>{POS_LABEL[pos].toUpperCase()}</span>
-              <div style={{flex:1,height:1,background:'rgba(255,255,255,0.06)'}}/>
-              <span style={{fontSize:9,color:'#334155'}}>{sc}/{grp.length}</span>
-            </div>
-            <div style={{display:'flex',flexDirection:'column',gap:5}}>
-              {grp.map(p=>{const isSel=selected.has(p.id);return(
-                <div key={p.id} onClick={()=>onToggle(p.id)} style={{display:'flex',alignItems:'center',gap:9,padding:'9px 12px',borderRadius:12,cursor:'pointer',background:isSel?'rgba(236,72,153,0.08)':'rgba(255,255,255,0.03)',border:`1px solid ${isSel?'rgba(236,72,153,0.3)':'rgba(255,255,255,0.06)'}`,transition:'all .15s'}}>
-                  <div style={{width:17,height:17,borderRadius:5,border:`2px solid ${isSel?'#ec4899':'rgba(255,255,255,0.15)'}`,background:isSel?'#ec4899':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s'}}>
-                    {isSel&&<IChk size={9} strokeWidth={3} color="white"/>}
-                  </div>
-                  <Pos pos={p.position} xs/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:600,fontSize:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
-                    <div style={{fontSize:9,color:'#475569'}}>{PERS_MAP[p.personality]||''} {(p.tags||[]).join(' · ')}</div>
-                  </div>
-                  <Ovr v={p.ovr||0}/>
+
+      {/* Scrollable player list */}
+      <div className="scr" style={{flex:1,padding:'0 16px',paddingBottom:80}}>
+        {loading ? (
+          <div style={{textAlign:'center',padding:32,color:'#475569'}}><Spin size={18}/></div>
+        ) : players.length===0 ? (
+          <div style={{textAlign:'center',padding:'48px 0',color:'#334155',fontSize:13}}>Cadastre jogadores no Elenco primeiro.</div>
+        ) : (
+          POSITIONS.map(function(pos){
+            const grp = filtered.filter(function(p){ return p.position===pos; });
+            if(!grp.length) return null;
+            const sc = grp.filter(function(p){ return selected.has(p.id); }).length;
+            return (
+              <div key={pos} style={{marginBottom:14}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                  <PosBadge pos={pos} sm/>
+                  <span style={{fontSize:9,fontWeight:800,color:'#334155',letterSpacing:'0.06em'}}>{POS_LBL[pos].toUpperCase()}</span>
+                  <div style={{flex:1,height:1,background:'rgba(255,255,255,0.06)'}}/>
+                  <span style={{fontSize:9,color:'#334155'}}>{sc}/{grp.length}</span>
                 </div>
-              );})}
-            </div>
-          </div>);
-        })}
-        {players.length===0&&!loading&&<div style={{textAlign:'center',padding:'48px 0',color:'#334155',fontSize:13}}>Cadastre jogadores no Elenco primeiro.</div>}
+                <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                  {grp.map(function(p){
+                    const isSel = selected.has(p.id);
+                    return (
+                      <div key={p.id} onClick={function(){onToggle(p.id);}} style={{display:'flex',alignItems:'center',gap:9,padding:'9px 12px',borderRadius:12,cursor:'pointer',background:isSel?'rgba(236,72,153,0.08)':'rgba(255,255,255,0.03)',border:'1px solid '+(isSel?'rgba(236,72,153,0.3)':'rgba(255,255,255,0.06)'),transition:'all .15s'}}>
+                        <div style={{width:17,height:17,borderRadius:5,border:'2px solid '+(isSel?'#ec4899':'rgba(255,255,255,0.15)'),background:isSel?'#ec4899':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s'}}>
+                          {isSel && <LIcon name="Check" size={9} fb="✓"/>}
+                        </div>
+                        <PosBadge pos={p.position} sm/>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:600,fontSize:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                          <div style={{fontSize:9,color:'#475569'}}>{(PERS_EMOJI[p.personality]||'')+' '+(p.tags||[]).join(' · ')}</div>
+                        </div>
+                        <OvrBadge value={p.ovr||0}/>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   MINI FIELD
-═══════════════════════════════════════════════════ */
-function PlayerNode({p,isBlackTeam,swapId,onCk}){
-  const selected=swapId===p.id,target=swapId&&swapId!==p.id,c=POS_COLOR[p.position]||{};
-  return(
-    <button onClick={()=>onCk(p)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 6px',borderRadius:10,cursor:'pointer',transition:'all .2s',background:selected?'rgba(250,204,21,0.35)':target?'rgba(0,0,0,0.7)':'rgba(0,0,0,0.6)',border:`${selected?2:1}px solid ${selected?'#facc15':target?'rgba(236,72,153,0.6)':'rgba(255,255,255,0.18)'}`,minWidth:48,maxWidth:62,boxShadow:selected?'0 0 10px rgba(250,204,21,0.5)':target?'0 0 6px rgba(236,72,153,0.3)':'none'}}>
-      <div style={{width:22,height:22,borderRadius:'50%',background:c.bg,color:c.tx,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:900}}>{p.position}</div>
-      <div style={{fontSize:8,color:'#f1f5f9',fontWeight:700,textAlign:'center',lineHeight:1.2,maxWidth:54,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name.split(' ')[0]}</div>
-      <div style={{fontSize:9}}>{PERS_MAP[p.personality]||''}</div>
+/* ══════════════════════════════════════════════════
+   8. MINI-CAMPO (Visualização Tática)
+══════════════════════════════════════════════════ */
+function PlayerNode({player, swapId, onCk}) {
+  const isSel = swapId===player.id;
+  const c = POS_CLR[player.position]||{bg:'#64748b',tx:'#0f172a'};
+  const fName = (player.name||'').split(' ')[0];
+  return (
+    <button onClick={function(){onCk(player);}} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 5px',borderRadius:10,cursor:'pointer',transition:'all .2s',background:isSel?'rgba(250,204,21,0.35)':'rgba(0,0,0,0.65)',border:isSel?'2px solid #facc15':'1px solid rgba(255,255,255,0.18)',minWidth:46,maxWidth:62,boxShadow:isSel?'0 0 10px rgba(250,204,21,0.5)':'none'}}>
+      <div style={{width:22,height:22,borderRadius:'50%',background:c.bg,color:c.tx,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:900}}>
+        {player.position}
+      </div>
+      <div style={{fontSize:8,color:'#f1f5f9',fontWeight:700,textAlign:'center',lineHeight:1.2,maxWidth:54,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+        {fName}
+      </div>
+      <div style={{fontSize:9}}>{PERS_EMOJI[player.personality]||''}</div>
     </button>
   );
 }
 
-function MiniField({team,isBlack,label,avg,swapId,onCk}){
-  const g=pos=>team.filter(p=>p.position===pos);
-  const defense=[...g('Z'),...g('AL')];
-  const zones=[g('A'),g('M'),defense,g('G')].filter(z=>z.length>0);
-  return(
-    <div style={{borderRadius:16,overflow:'hidden',border:`1px solid ${isBlack?'rgba(255,255,255,0.1)':'rgba(236,72,153,0.3)'}`}}>
+function TeamField({team, isBlack, label, avgOvr, swapId, onCk}) {
+  const aGrp = team.filter(function(p){ return p.position==='A'; });
+  const mGrp = team.filter(function(p){ return p.position==='M'; });
+  const dGrp = team.filter(function(p){ return p.position==='Z'||p.position==='AL'; });
+  const gGrp = team.filter(function(p){ return p.position==='G'; });
+  const zones = [aGrp,mGrp,dGrp,gGrp].filter(function(z){ return z.length>0; });
+
+  const hBg  = isBlack ? '#090f1d' : 'rgba(236,72,153,0.12)';
+  const sFill= isBlack ? '#1e293b' : '#ec4899';
+  const sSt  = isBlack ? '#475569' : '#db2777';
+  const nClr = isBlack ? 'white'   : '#fce7f3';
+  const aClr = isBlack ? 'white'   : '#f9a8d4';
+  const bdr  = isBlack ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(236,72,153,0.3)';
+
+  return (
+    <div style={{borderRadius:16,overflow:'hidden',border:bdr}}>
       {/* Header */}
-      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:isBlack?'#090f1d':'rgba(236,72,153,0.12)'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:hBg}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill={isBlack?'#1e293b':'#ec4899'} stroke={isBlack?'#475569':'#db2777'} strokeWidth="1.2"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>
-          <span style={{fontWeight:900,fontSize:13,color:isBlack?'white':'#fce7f3'}}>{label}</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill={sFill} stroke={sSt} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/>
+          </svg>
+          <span style={{fontWeight:900,fontSize:13,color:nClr}}>{label}</span>
         </div>
         <div style={{textAlign:'right'}}>
-          <div style={{fontSize:22,fontWeight:900,color:isBlack?'white':'#f9a8d4'}}>{avg}</div>
+          <div style={{fontSize:22,fontWeight:900,color:aClr}}>{avgOvr}</div>
           <div style={{fontSize:8,color:'#475569',letterSpacing:'0.06em'}}>OVR MÉDIO</div>
         </div>
       </div>
       {/* Pitch */}
-      <div className="grad-field" style={{position:'relative',padding:'10px 6px',minHeight:170}}>
-        {/* Lines */}
+      <div className="g-field" style={{position:'relative',padding:'10px 6px',minHeight:175}}>
         <div style={{position:'absolute',inset:0,border:'1.5px solid rgba(255,255,255,0.18)',borderRadius:'0 0 14px 14px',pointerEvents:'none'}}/>
         <div style={{position:'absolute',left:'8%',right:'8%',top:'50%',height:1,background:'rgba(255,255,255,0.2)',pointerEvents:'none'}}/>
-        <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:36,height:36,border:'1.5px solid rgba(255,255,255,0.18)',borderRadius:'50%',pointerEvents:'none'}}/>
-        <div style={{position:'absolute',bottom:6,left:'20%',right:'20%',height:18,border:'1.5px solid rgba(255,255,255,0.15)',borderTop:'none',borderRadius:'0 0 8px 8px',pointerEvents:'none'}}/>
-        {/* Zones */}
-        <div style={{display:'flex',flexDirection:'column',gap:8,position:'relative',zIndex:1}}>
-          {zones.map((zone,zi)=>(
-            <div key={zi} style={{display:'flex',justifyContent:'center',gap:5,flexWrap:'wrap'}}>
-              {zone.map(pl=><PlayerNode key={pl.id} p={pl} isBlack={isBlack} swapId={swapId} onCk={onCk}/>)}
-            </div>
-          ))}
+        <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:34,height:34,border:'1.5px solid rgba(255,255,255,0.18)',borderRadius:'50%',pointerEvents:'none'}}/>
+        <div style={{position:'absolute',bottom:6,left:'22%',right:'22%',height:16,border:'1.5px solid rgba(255,255,255,0.12)',borderTop:'none',borderRadius:'0 0 8px 8px',pointerEvents:'none'}}/>
+        <div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:8}}>
+          {zones.map(function(zone,zi){
+            return (
+              <div key={zi} style={{display:'flex',justifyContent:'center',gap:5,flexWrap:'wrap'}}>
+                {zone.map(function(pl){ return <PlayerNode key={pl.id} player={pl} swapId={swapId} onCk={onCk}/>; })}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   TIMES TAB
-═══════════════════════════════════════════════════ */
-function TimesTab({teams,onResort,isSorting}){
-  const [local,setLocal]=useState(teams);
-  const [swapId,setSwapId]=useState(null);
-  useEffect(()=>{setLocal(teams);setSwapId(null);},[teams]);
-  const t=local;
-  const onCk=pl=>{
-    if(!swapId){setSwapId(pl.id);return}
-    if(swapId===pl.id){setSwapId(null);return}
-    const all=[...t.preto,...t.rosa];
-    const p1=all.find(p=>p.id===swapId),p2=pl;
-    if(!p1){setSwapId(null);return}
-    const p1P=t.preto.some(p=>p.id===swapId),p2P=t.preto.some(p=>p.id===p2.id);
-    if(p1P===p2P){setSwapId(p2.id);return}
-    const newP=t.preto.map(p=>p.id===swapId?p2:p.id===p2.id?p1:p);
-    const newR=t.rosa.map(p=>p.id===swapId?p2:p.id===p2.id?p1:p);
-    const sp=newP.reduce((s,p)=>s+p.ovr,0),sr=newR.reduce((s,p)=>s+p.ovr,0);
-    setLocal({...t,preto:newP,rosa:newR,avgP:(sp/newP.length).toFixed(2),avgR:(sr/newR.length).toFixed(2),diff:Math.abs(sp-sr).toFixed(2),_ts:Date.now()});
+/* ══════════════════════════════════════════════════
+   9. TIMES TAB
+══════════════════════════════════════════════════ */
+function TimesTab({teams, onResort, sorting}) {
+  const [local,  setLocal]  = useState(teams);
+  const [swapId, setSwapId] = useState(null);
+
+  useEffect(function(){ setLocal(teams); setSwapId(null); }, [teams]);
+
+  function handleClick(pl) {
+    if(!swapId){ setSwapId(pl.id); return; }
+    if(swapId===pl.id){ setSwapId(null); return; }
+    const t = local;
+    if(!t) return;
+    const all = t.preto.concat(t.rosa);
+    let p1=null;
+    all.forEach(function(p){ if(p.id===swapId) p1=p; });
+    if(!p1){ setSwapId(null); return; }
+    const p2=pl;
+    const p1P = t.preto.some(function(p){ return p.id===swapId; });
+    const p2P = t.preto.some(function(p){ return p.id===p2.id; });
+    if(p1P===p2P){ setSwapId(p2.id); return; }
+    const newP = t.preto.map(function(p){ return p.id===swapId?p2:p.id===p2.id?p1:p; });
+    const newR = t.rosa.map(function(p){  return p.id===swapId?p2:p.id===p2.id?p1:p; });
+    let sp=0, sr=0;
+    newP.forEach(function(p){ sp+=(p.ovr||0); });
+    newR.forEach(function(p){ sr+=(p.ovr||0); });
+    setLocal(Object.assign({},t,{preto:newP,rosa:newR,avgP:(sp/newP.length).toFixed(2),avgR:(sr/newR.length).toFixed(2),diff:Math.abs(sp-sr).toFixed(2),_ts:Date.now()}));
     setSwapId(null);
-  };
-  const download=async()=>{
-    const el=document.getElementById('tc');
-    if(!el||!window.html2canvas)return;
-    const c=await window.html2canvas(el,{backgroundColor:'#0a0f1e',scale:2,useCORS:true,logging:false});
-    const a=document.createElement('a');a.download='times-tia.png';a.href=c.toDataURL('image/png');a.click();
-  };
-  const whatsapp=()=>{
-    if(!t)return;
-    const byPos=(team,pos)=>team.filter(p=>p.position===pos).map(p=>p.name);
-    const fmt=(team,nm,avg)=>{
-      const ls=[`⚽ ${nm} - Média: ${avg}`];
-      for(const pos of POSITIONS){const ns=byPos(team,pos);if(ns.length)ls.push(`${pos}: ${ns.join(', ')}`)}
+  }
+
+  async function handleDownload() {
+    const el = document.getElementById('tc');
+    if(!el||!window.html2canvas) return;
+    try {
+      const canvas = await window.html2canvas(el, {backgroundColor:'#0a0f1e',scale:2,useCORS:true,logging:false});
+      const a = document.createElement('a');
+      a.download='times-tia.png'; a.href=canvas.toDataURL('image/png'); a.click();
+    } catch(e){ console.error('Screenshot error:',e); }
+  }
+
+  function handleWhatsApp() {
+    const t = local;
+    if(!t) return;
+    function byPos(team,pos){ return team.filter(function(p){ return p.position===pos; }).map(function(p){ return p.name; }); }
+    function fmt(team,nome,avg){
+      const ls=['⚽ '+nome+' - Média: '+avg];
+      POSITIONS.forEach(function(pos){ const ns=byPos(team,pos); if(ns.length) ls.push(pos+': '+ns.join(', ')); });
       return ls.join('\n');
-    };
+    }
     const txt=['Preparem-se para ficar putos!! Saiu a escalação da TiA para nossa pela de segunda:','',fmt(t.preto,'Preto',t.avgP),'',fmt(t.rosa,'Rosa',t.avgR)].join('\n');
     window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
-  };
-  if(!t)return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:14,padding:32,textAlign:'center'}}>
-      <div style={{fontSize:52}}>⚽</div>
-      <p style={{color:'#334155',fontSize:13,lineHeight:1.7}}>Selecione jogadores na aba <strong style={{color:'#ec4899'}}>Pelada</strong> e clique em sortear.</p>
-    </div>
-  );
-  const d=parseFloat(t.diff);
-  const [dlbl,dcl]=d<=.5?['Perfeito','#10b981']:d<=1.5?['Muito equilibrado','#10b981']:d<=3?['Bom equilíbrio','#f59e0b']:['Desequilibrado','#ef4444'];
-  return(
-    <div className="tab-scroll" style={{paddingBottom:90}}>
-      {/* Balance */}
+  }
+
+  if(!local) {
+    return (
+      <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:14,padding:32,textAlign:'center'}}>
+        <div style={{fontSize:52}}>⚽</div>
+        <p style={{color:'#334155',fontSize:13,lineHeight:1.7}}>
+          Selecione jogadores na aba <strong style={{color:'#ec4899'}}>Pelada</strong> e clique em Sortear.
+        </p>
+      </div>
+    );
+  }
+
+  const t   = local;
+  const d   = parseFloat(t.diff)||0;
+  const bLb = d<=.5?'Perfeito!':d<=1.5?'Muito equilibrado!':d<=3?'Bom equilíbrio':'Desequilibrado';
+  const bCl = d<=1.5?'#10b981':d<=3?'#f59e0b':'#ef4444';
+
+  return (
+    <div className="scr" style={{paddingBottom:90}}>
+      {/* Balance card */}
       <div style={{padding:'12px 16px 0'}}>
-        <div className="glass rounded-xl" style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px'}}>
-          <div><div style={{fontSize:9,color:'#475569',marginBottom:2,letterSpacing:'0.07em'}}>EQUILÍBRIO</div>
-            <div style={{fontSize:22,fontWeight:900,color:dcl}}>Δ {t.diff}</div></div>
+        <div className="glass" style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderRadius:14}}>
+          <div>
+            <div style={{fontSize:9,color:'#475569',marginBottom:2,letterSpacing:'0.07em'}}>EQUILÍBRIO TÉCNICO</div>
+            <div style={{fontSize:22,fontWeight:900,color:bCl}}>Δ {t.diff}</div>
+          </div>
           <div style={{textAlign:'right'}}>
-            <div style={{fontSize:10,fontWeight:700,color:dcl}}><IZap size={11} style={{display:'inline'}}/> {dlbl}</div>
-            <div style={{fontSize:9,color:'#334155',marginTop:2}}>Penalty: {parseFloat(t.score||0).toFixed(0)}</div>
+            <div style={{fontSize:10,fontWeight:700,color:bCl}}>
+              <LIcon name="Zap" size={11} fb="⚡"/> {bLb}
+            </div>
+            <div style={{fontSize:9,color:'#334155',marginTop:2}}>Penalty: {Math.round(t.score||0)}</div>
           </div>
         </div>
       </div>
-      {/* Swap hint */}
-      {swapId&&<div style={{margin:'8px 16px 0',padding:'7px 12px',borderRadius:10,background:'rgba(250,204,21,0.08)',border:'1px solid rgba(250,204,21,0.25)',fontSize:10,color:'#fbbf24',textAlign:'center'}}>🔄 Toque em um jogador do time adversário para trocar</div>}
-      {/* Fields */}
+
+      {swapId && (
+        <div style={{margin:'8px 16px 0',padding:'7px 12px',borderRadius:10,background:'rgba(250,204,21,0.08)',border:'1px solid rgba(250,204,21,0.25)',fontSize:10,color:'#fbbf24',textAlign:'center'}}>
+          🔄 Jogador selecionado — toque em um do time adversário para trocar
+        </div>
+      )}
+
+      {/* Campos capturáveis pelo html2canvas */}
       <div id="tc" style={{padding:'8px 16px',display:'flex',flexDirection:'column',gap:10,background:'#0a0f1e'}}>
-        <MiniField team={t.preto} isBlack={true} label="TIME PRETO" avg={t.avgP} swapId={swapId} onCk={onCk}/>
-        <MiniField team={t.rosa} isBlack={false} label="TIME ROSA" avg={t.avgR} swapId={swapId} onCk={onCk}/>
+        <TeamField team={t.preto} isBlack={true}  label="TIME PRETO" avgOvr={t.avgP} swapId={swapId} onCk={handleClick}/>
+        <TeamField team={t.rosa}  isBlack={false} label="TIME ROSA"  avgOvr={t.avgR} swapId={swapId} onCk={handleClick}/>
       </div>
-      {/* Actions */}
+
+      {/* Action buttons — renderizados explicitamente, SEM arrays de objetos JSX */}
       <div style={{padding:'8px 16px 0',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-        {[
-          {fn:onResort,bg:'rgba(255,255,255,0.05)',bc:'rgba(255,255,255,0.1)',col:'#94a3b8',icon:<>{isSorting?<Spin s={12}/>:<IReset size={13}/>} Ressortear</>},
-          {fn:download,bg:'rgba(99,102,241,0.12)',bc:'rgba(99,102,241,0.25)',col:'#818cf8',icon:<><IDL size={13}/> Download</>},
-          {fn:whatsapp,bg:'rgba(34,197,94,0.1)',bc:'rgba(34,197,94,0.25)',col:'#4ade80',icon:<><span>📲</span> WhatsApp</>},
-        ].map((b,i)=>(
-          <button key={i} onClick={b.fn} style={{background:b.bg,border:`1px solid ${b.bc}`,borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:b.col,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-            {b.icon}
-          </button>
-        ))}
+        <button onClick={function(){if(!sorting)onResort();}} disabled={sorting} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+          {sorting ? <Spin size={11}/> : <LIcon name="RotateCcw" size={12} fb="↺"/>}
+          Ressortear
+        </button>
+        <button onClick={handleDownload} style={{background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.25)',borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:'#818cf8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+          <LIcon name="Download" size={12} fb="⬇"/> Download
+        </button>
+        <button onClick={handleWhatsApp} style={{background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.25)',borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:'#4ade80',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+          <span>📲</span> WhatsApp
+        </button>
       </div>
-      {swapId&&<div style={{padding:'6px 16px 0'}}>
-        <button onClick={()=>setSwapId(null)} style={{width:'100%',background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:12,padding:'9px',fontSize:11,fontWeight:700,color:'#f87171',cursor:'pointer'}}>✕ Cancelar troca</button>
-      </div>}
+
+      {swapId && (
+        <div style={{padding:'6px 16px 0'}}>
+          <button onClick={function(){setSwapId(null);}} style={{width:'100%',background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:12,padding:'9px',fontSize:11,fontWeight:700,color:'#f87171',cursor:'pointer'}}>
+            ✕ Cancelar troca
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   APP ROOT
-═══════════════════════════════════════════════════ */
-function App(){
-  const [db,setDb]=useState(window.__db||null);
-  const [api,setApi]=useState(window.__fsAPI||null);
-  const [fbErr,setFbErr]=useState(window.__fbErr||null);
-  const [players,setPlayers]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [saving,setSaving]=useState(false);
-  const [isSorting,setIsSorting]=useState(false);
-  const [selected,setSelected]=useState(new Set());
-  const [teams,setTeams]=useState(null);
-  const [ppt,setPpt]=useState(7);
-  const [tab,setTab]=useState('elenco');
-  // Firebase init
-  useEffect(()=>{
-    if(db)return;
-    const ok=()=>{setDb(window.__db);setApi(window.__fsAPI)};
-    const er=()=>setFbErr(window.__fbErr||'Erro Firebase');
-    window.addEventListener('firebase-ready',ok,{once:true});
-    window.addEventListener('firebase-error',er,{once:true});
-    return()=>{window.removeEventListener('firebase-ready',ok);window.removeEventListener('firebase-error',er)};
-  },[db]);
-  // Snapshot
-  useEffect(()=>{
-    if(!db||!api)return;
+/* ══════════════════════════════════════════════════
+   10. APP ROOT
+══════════════════════════════════════════════════ */
+function App() {
+  const [db,    setDb]    = useState(window.__db    || null);
+  const [api,   setApi]   = useState(window.__fsAPI || null);
+  const [fbErr, setFbErr] = useState(window.__fbErr || null);
+
+  const [players,  setPlayers]  = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [sorting,  setSorting]  = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [teams,    setTeams]    = useState(null);
+  const [ppt,      setPpt]      = useState(7);
+  const [tab,      setTab]      = useState('elenco');
+
+  // Aguarda Firebase (type="module" pode chegar depois do Babel)
+  useEffect(function() {
+    if(db) return;
+    function onReady(){ setDb(window.__db); setApi(window.__fsAPI); }
+    function onErr(){ setFbErr(window.__fbErr||'Erro ao conectar ao Firebase'); }
+    window.addEventListener('firebase-ready', onReady, {once:true});
+    window.addEventListener('firebase-error', onErr,   {once:true});
+    return function(){ window.removeEventListener('firebase-ready',onReady); window.removeEventListener('firebase-error',onErr); };
+  }, [db]);
+
+  // Listener em tempo real
+  useEffect(function() {
+    if(!db||!api) return;
     setLoading(true);
-    const unsub=api.onSnapshot(api.collection(db,'jogadores'),snap=>{
-      const data=snap.docs.map(d=>{const p={id:d.id,...d.data()};p.ovr=calcOvr(p.position,p.attrs||{});return p}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-      setPlayers(data);
-      const vid=new Set(data.map(p=>p.id));
-      setSelected(prev=>{const c=new Set([...prev].filter(id=>vid.has(id)));return c.size===prev.size?prev:c});
-      setLoading(false);
-    },err=>{console.error(err);setLoading(false)});
+    const unsub = api.onSnapshot(
+      api.collection(db,'jogadores'),
+      function(snap) {
+        const data = snap.docs.map(function(d){
+          const p = Object.assign({id:d.id}, d.data());
+          p.ovr = calcOvr(p.position, p.attrs||{});
+          return p;
+        });
+        data.sort(function(a,b){ return (a.createdAt||0)-(b.createdAt||0); });
+        setPlayers(data);
+        const vid = new Set(data.map(function(p){ return p.id; }));
+        setSelected(function(prev){
+          const arr = Array.from(prev).filter(function(id){ return vid.has(id); });
+          const c   = new Set(arr);
+          return c.size===prev.size ? prev : c;
+        });
+        setLoading(false);
+      },
+      function(e){ console.error(e); setLoading(false); }
+    );
     return unsub;
-  },[db,api]);
-  const ws=async fn=>{if(saving)return;setSaving(true);try{await fn()}catch(e){console.error(e)}finally{setSaving(false)}};
-  const addP=d=>ws(async()=>await api.addDoc(api.collection(db,'jogadores'),{...d,createdAt:Date.now()}));
-  const delP=id=>ws(async()=>await api.deleteDoc(api.doc(db,'jogadores',id)));
-  const editP=d=>ws(async()=>{const{id,...r}=d;await api.updateDoc(api.doc(db,'jogadores',id),r)});
-  const togP=id=>setSelected(s=>{const n=new Set(s);n.has(id)?n.delete(id):n.add(id);return n});
-  const togAll=()=>setSelected(players.every(p=>selected.has(p.id))?new Set():new Set(players.map(p=>p.id)));
-  const doSort=()=>{
-    const sel=players.filter(p=>selected.has(p.id));
-    setIsSorting(true);
-    setTimeout(()=>{const r=geneticSort(sel,ppt);if(r){setTeams(r);setTab('times')}setIsSorting(false)},60);
-  };
-  if(!db&&!fbErr)return(
-    <div style={{minHeight:'100dvh',background:'#0a0f1e',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}>
-      <div style={{fontSize:48}}>🤖</div>
-      <div style={{textAlign:'center'}}>
-        <div style={{color:'#ec4899',fontWeight:700,fontSize:13,marginBottom:4,opacity:1}} className="animate-pulse">Conectando ao Firebase...</div>
-        <div style={{color:'#334155',fontSize:11}}>Sincronizando banco de dados</div>
+  }, [db, api]);
+
+  // CRUD
+  async function addP(data) {
+    if(saving) return; setSaving(true);
+    try { await api.addDoc(api.collection(db,'jogadores'), Object.assign({},data,{createdAt:Date.now()})); }
+    catch(e){ console.error(e); } finally { setSaving(false); }
+  }
+  async function delP(id) {
+    if(saving) return; setSaving(true);
+    try { await api.deleteDoc(api.doc(db,'jogadores',id)); }
+    catch(e){ console.error(e); } finally { setSaving(false); }
+  }
+  async function editP(data) {
+    if(saving) return; setSaving(true);
+    try {
+      const id=data.id; const f=Object.assign({},data); delete f.id;
+      await api.updateDoc(api.doc(db,'jogadores',id),f);
+    } catch(e){ console.error(e); } finally { setSaving(false); }
+  }
+
+  function togPlayer(id){ setSelected(function(s){ const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; }); }
+  function togAll(){ const a=players.every(function(p){ return selected.has(p.id); }); setSelected(a?new Set():new Set(players.map(function(p){ return p.id; }))); }
+
+  function doSort() {
+    const sel=players.filter(function(p){ return selected.has(p.id); });
+    setSorting(true);
+    setTimeout(function(){
+      const r=geneticSort(sel,ppt);
+      if(r){ setTeams(r); setTab('times'); }
+      setSorting(false);
+    }, 60);
+  }
+
+  // ── Telas de estado ──
+  if(!db && !fbErr) {
+    return (
+      <div style={{minHeight:'100dvh',background:'#0a0f1e',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}>
+        <div style={{fontSize:48}}>🤖</div>
+        <p style={{color:'#ec4899',fontWeight:700,fontSize:14}}>Conectando ao Firebase...</p>
+        <p style={{color:'#475569',fontSize:11}}>Aguarde</p>
       </div>
+    );
+  }
+  if(fbErr) {
+    return (
+      <div style={{minHeight:'100dvh',background:'#0a0f1e',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:32,textAlign:'center'}}>
+        <div style={{fontSize:44}}>⚠️</div>
+        <p style={{color:'#f87171',fontWeight:700}}>Erro ao conectar</p>
+        <p style={{color:'#475569',fontSize:11,maxWidth:280}}>{fbErr}</p>
+        <button onClick={function(){window.location.reload();}} style={{marginTop:8,padding:'10px 20px',borderRadius:12,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#94a3b8',cursor:'pointer',fontSize:12}}>
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  // ── App principal ──
+  const savingBadge = saving ? (
+    <div style={{display:'flex',alignItems:'center',gap:4,fontSize:9,fontWeight:700,color:'#ec4899',background:'rgba(236,72,153,0.08)',border:'1px solid rgba(236,72,153,0.2)',borderRadius:20,padding:'3px 8px'}}>
+      <Spin size={9}/> SALVANDO
     </div>
-  );
-  if(fbErr)return(
-    <div style={{minHeight:'100dvh',background:'#0a0f1e',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:32,textAlign:'center'}}>
-      <div style={{fontSize:44}}>⚠️</div>
-      <div style={{color:'#f87171',fontWeight:700}}>Erro ao conectar</div>
-      <div style={{color:'#334155',fontSize:11,maxWidth:280}}>{fbErr}</div>
-      <button onClick={()=>location.reload()} style={{marginTop:8,padding:'10px 20px',borderRadius:12,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',color:'#94a3b8',cursor:'pointer',fontSize:12}}>Tentar novamente</button>
+  ) : !loading ? (
+    <div style={{display:'flex',alignItems:'center',gap:4,fontSize:9,color:'#10b981'}}>
+      <span style={{width:5,height:5,borderRadius:'50%',background:'#10b981',display:'inline-block'}}/>
+      AO VIVO
     </div>
-  );
-  const TABS=[{id:'elenco',I:IUsers,l:'Elenco'},{id:'pelada',I:IShield,l:'Pelada'},{id:'times',I:ITrophy,l:'Times'}];
-  return(
+  ) : null;
+
+  const TABS_CFG = [
+    {id:'elenco', lbl:'Elenco', icon:'Users',  fb:'👥'},
+    {id:'pelada', lbl:'Pelada', icon:'Shield', fb:'🛡'},
+    {id:'times',  lbl:'Times',  icon:'Trophy', fb:'🏆'},
+  ];
+
+  return (
     <div style={{maxWidth:430,margin:'0 auto',height:'100dvh',display:'flex',flexDirection:'column',background:'#0a0f1e'}}>
       {/* Header */}
       <div className="glass" style={{flexShrink:0,padding:'10px 16px',display:'flex',alignItems:'center',gap:10}}>
-        <svg width="32" height="32" viewBox="0 0 38 38" fill="none">
+        <svg width="32" height="32" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
           <line x1="19" y1="2" x2="19" y2="7" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round"/>
           <circle cx="19" cy="1.8" r="2.2" fill="#f472b6"/>
           <rect x="8" y="7" width="22" height="15" rx="4" fill="#1e293b"/>
@@ -608,32 +904,40 @@ function App(){
           <path d="M16 25.5 Q19 23 22 25.5 L20.5 26 Q19 24.5 17.5 26 Z" fill="#334155"/>
         </svg>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontWeight:900,fontSize:14,lineHeight:1.2}}>TiA – Amigos da Oi</div>
-          <div style={{fontSize:9,color:'#334155',letterSpacing:'0.04em'}}>{players.length} ATLETAS · MATCHMAKING ENGINE v3</div>
+          <div style={{fontWeight:900,fontSize:14,lineHeight:1.2}}>TiA — Amigos da Oi</div>
+          <div style={{fontSize:9,color:'#334155',letterSpacing:'0.04em'}}>{players.length} ATLETAS · ENGINE v3</div>
         </div>
-        {saving?<div style={{display:'flex',alignItems:'center',gap:4,fontSize:9,fontWeight:700,color:'#ec4899',background:'rgba(236,72,153,0.08)',border:'1px solid rgba(236,72,153,0.2)',borderRadius:20,padding:'3px 8px'}}><Spin s={9}/>SALVANDO</div>
-         :!loading&&<div style={{display:'flex',alignItems:'center',gap:4,fontSize:9,color:'#10b981'}}><span style={{width:5,height:5,borderRadius:'50%',background:'#10b981',display:'inline-block'}}/>AO VIVO</div>}
+        {savingBadge}
       </div>
-      {/* Content */}
+
+      {/* Content area */}
       <div style={{flex:1,overflow:'hidden',position:'relative'}}>
-        {tab==='elenco'&&<ElencoTab players={players} onAdd={addP} onDel={delP} onEdit={editP} saving={saving} loading={loading}/>}
-        {tab==='pelada'&&<ConvoTab players={players} selected={selected} onToggle={togP} onToggleAll={togAll} onSort={doSort} ppt={ppt} setPpt={setPpt} loading={loading} isSorting={isSorting}/>}
-        {tab==='times'&&<TimesTab teams={teams} onResort={doSort} isSorting={isSorting}/>}
+        {tab==='elenco' && <ElencoTab players={players} onAdd={addP} onDel={delP} onEdit={editP} saving={saving} loading={loading}/>}
+        {tab==='pelada' && <ConvoTab  players={players} selected={selected} onToggle={togPlayer} onToggleAll={togAll} onSort={doSort} ppt={ppt} setPpt={setPpt} loading={loading} sorting={sorting}/>}
+        {tab==='times'  && <TimesTab  teams={teams} onResort={doSort} sorting={sorting}/>}
       </div>
+
       {/* Bottom Tab Bar */}
       <div className="glass" style={{flexShrink:0,display:'flex',borderTop:'1px solid rgba(255,255,255,0.06)',paddingBottom:'max(10px,env(safe-area-inset-bottom))'}}>
-        {TABS.map(({id,I,l})=>{const ac=tab===id;return(
-          <button key={id} onClick={()=>setTab(id)} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'10px 4px 8px',background:'none',border:'none',cursor:'pointer',color:ac?'#ec4899':'#334155',transition:'color .15s',position:'relative'}}>
-            <I size={19}/>
-            {id==='times'&&teams&&<span style={{position:'absolute',top:8,right:'28%',width:7,height:7,borderRadius:'50%',background:'#ec4899',border:'1.5px solid #0a0f1e'}}/>}
-            <span style={{fontSize:8,fontWeight:ac?800:400,letterSpacing:'0.05em'}}>{l.toUpperCase()}</span>
-            {ac&&<div style={{width:18,height:2,borderRadius:1,background:'linear-gradient(90deg,#ec4899,#8b5cf6)',marginTop:1}}/>}
-          </button>
-        );})}
+        {TABS_CFG.map(function(tc){
+          const active = tab===tc.id;
+          const hasDot = tc.id==='times' && teams!=null;
+          return (
+            <button key={tc.id} onClick={function(){setTab(tc.id);}} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'10px 4px 8px',background:'none',border:'none',cursor:'pointer',color:active?'#ec4899':'#334155',transition:'color .15s',position:'relative'}}>
+              <span style={{position:'relative',lineHeight:1}}>
+                <LIcon name={tc.icon} size={19} fb={tc.fb}/>
+                {hasDot && <span style={{position:'absolute',top:-3,right:-5,width:7,height:7,borderRadius:'50%',background:'#ec4899',border:'1.5px solid #0a0f1e'}}/>}
+              </span>
+              <span style={{fontSize:8,fontWeight:active?800:400,letterSpacing:'0.05em'}}>{tc.lbl.toUpperCase()}</span>
+              {active && <div style={{width:18,height:2,borderRadius:1,background:'linear-gradient(90deg,#ec4899,#8b5cf6)'}}/>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
+
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
