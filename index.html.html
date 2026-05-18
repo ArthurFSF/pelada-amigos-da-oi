@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
+  <title>TiA — Amigos da Oi</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide-react@0.263.0/dist/umd/lucide-react.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, updateDoc }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    const firebaseConfig = {
+      apiKey:"AIzaSyDk6gRJmY4MTiyQepteHiRcuu1Cdve26c8",
+      authDomain:"bd-tia---pelada-amigos-da-oi.firebaseapp.com",
+      projectId:"bd-tia---pelada-amigos-da-oi",
+      storageBucket:"bd-tia---pelada-amigos-da-oi.firebasestorage.app",
+      messagingSenderId:"96275072616",
+      appId:"1:96275072616:web:335c29b99113f9171cdddd",
+      measurementId:"G-G6RF19CXYH"
+    };
+    try {
+      const app=initializeApp(firebaseConfig);
+      window.__db=getFirestore(app);
+      window.__fsAPI={collection,addDoc,deleteDoc,doc,onSnapshot,updateDoc};
+      window.dispatchEvent(new CustomEvent('firebase-ready'));
+    } catch(e){window.__fbErr=e.message;window.dispatchEvent(new CustomEvent('firebase-error'));}
+  </script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;background:#0a0f1e;color:#f1f5f9;overflow:hidden}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+    ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#ec4899;border-radius:3px}
+    .scr{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+    .glass{background:rgba(255,255,255,0.04);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,0.08)}
+    .g-pink{background:linear-gradient(135deg,#ec4899,#8b5cf6)}
+    .g-field{background:linear-gradient(180deg,#14532d 0%,#166534 30%,#15803d 60%,#14532d 100%)}
+    @keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .fu{animation:fu .3s ease}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .spin{animation:spin .8s linear infinite;display:inline-block;line-height:1}
+    @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(236,72,153,0)}50%{box-shadow:0 0 18px 5px rgba(236,72,153,.2)}}
+    .glow{animation:glow 2s ease-in-out infinite}
+    input,select{color-scheme:dark;-webkit-appearance:none}
+    .inp{width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:10px 14px;font-size:13px;color:#f1f5f9;outline:none;transition:border-color .2s}
+    .inp:focus{border-color:#ec4899}.inp:disabled{opacity:.5}
+    optgroup{color:#64748b;font-style:normal}option{color:#f1f5f9;background:#1e293b}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useMemo}=React;
+
+/* ══════════ CONSTANTS ══════════════════════════════════════ */
+const POSITIONS=['G','Z','AL','M','A'];
+const POS_LBL={G:'Goleiro',Z:'Zagueiro',AL:'Lateral',M:'Meio-campo',A:'Atacante'};
+const POS_CLR={G:{bg:'#f59e0b',tx:'#78350f'},Z:{bg:'#3b82f6',tx:'#1e3a8a'},AL:{bg:'#f97316',tx:'#7c2d12'},M:{bg:'#10b981',tx:'#064e3b'},A:{bg:'#ef4444',tx:'#7f1d1d'}};
+const TAGS_MAP={G:[],Z:['Xerife','Aéreo','Construtor','Linha'],AL:['Raçudo','Cruzador','Velocista','Defensivo'],M:['Organizador','Destrutivo','Criativo','Box-to-Box'],A:['Artilheiro','Driblador','Velocista','Pivô']};
+const PERS_LIST=[{id:'Operário',e:'⚙️'},{id:'Fominha',e:'🦁'},{id:'Pilhado',e:'⚡'},{id:'Maestro',e:'🎯'},{id:'Resenha',e:'😄'}];
+const PERS_EMOJI={};PERS_LIST.forEach(function(p){PERS_EMOJI[p.id]=p.e;});
+const ATTRS=['fisico','defesa','tatico','construcao','habilidade','ataque'];
+const ATTR_LB={fisico:'Físico',defesa:'Defesa',tatico:'Tático',construcao:'Construção',habilidade:'Habilidade',ataque:'Ataque'};
+const WEIGHTS={
+  G:{defesa:.40,fisico:.25,tatico:.125,construcao:.075,habilidade:.075,ataque:.075},
+  Z:{defesa:.35,fisico:.25,tatico:.15,construcao:.10,habilidade:.075,ataque:.075},
+  AL:{fisico:.25,defesa:.20,habilidade:.20,construcao:.15,ataque:.10,tatico:.10},
+  M:{construcao:.30,tatico:.20,fisico:.15,habilidade:.15,ataque:.10,defesa:.10},
+  A:{ataque:.35,habilidade:.20,fisico:.20,tatico:.10,construcao:.075,defesa:.075}
+};
+const RTNG=[];for(var _i=0;_i<=12;_i++)RTNG.push(Math.round((10-_i*.5)*10)/10);
+const DEF_ATTRS={fisico:7,defesa:7,tatico:7,construcao:7,habilidade:7,ataque:7};
+// Radar axis order (clockwise from top)
+const RKEYS=['fisico','defesa','habilidade','ataque','construcao','tatico'];
+const RLBLS=['Físico','Defesa','Habilid.','Ataque','Construção','Tático'];
+
+/* ══════════ ALGORITHMS ═════════════════════════════════════ */
+function calcOvr(pos,attrs){const w=WEIGHTS[pos]||{};const a=attrs||{};return Object.keys(w).reduce(function(s,k){return s+(a[k]||5)*w[k];},0);}
+function calcPenalty(t1,t2){let o1=0,o2=0;t1.forEach(function(p){o1+=(p.ovr||0);});t2.forEach(function(p){o2+=(p.ovr||0);});let ad=0;ATTRS.forEach(function(ak){let s1=0,s2=0;t1.forEach(function(p){s1+=((p.attrs||{})[ak]||5);});t2.forEach(function(p){s2+=((p.attrs||{})[ak]||5);});ad+=Math.abs(s1/t1.length-s2/t2.length);});function tagC(t){const m={};t.forEach(function(p){(p.tags||[]).forEach(function(tg){m[tg]=(m[tg]||0)+1;});});return Object.values(m).reduce(function(s,c){return s+Math.max(0,c-1);},0);}function clash(t){const ps=t.map(function(p){return p.personality;});return ps.indexOf('Fominha')>=0&&ps.indexOf('Pilhado')>=0?1:0;}return Math.abs(o1-o2)*10+ad*5+(tagC(t1)+tagC(t2))*2+(clash(t1)+clash(t2))*3;}
+function geneticSort(sel,ppt){const gks=sel.filter(function(p){return p.position==='G';});const nonGk=sel.filter(function(p){return p.position!=='G';});if(gks.length<2)return null;const gk1=gks[0],gk2=gks[1];const linha=nonGk.concat(gks.slice(2));const lpt=ppt-1;if(linha.length!==lpt*2)return null;let best=null,bs=Infinity;for(let i=0;i<1000;i++){const sh=linha.slice().sort(function(){return Math.random()-.5;});const t1=sh.slice(0,lpt),t2=sh.slice(lpt);const sc=calcPenalty([gk1].concat(t1),[gk2].concat(t2));if(sc<bs){bs=sc;best={t1:t1,t2:t2};}}if(!best)return null;const ord={G:0,Z:1,AL:2,M:3,A:4};function srt(arr){return arr.slice().sort(function(x,y){return (ord[x.position]||9)-(ord[y.position]||9);});}const gkP=Math.random()>.5?gk1:gk2,gkR=gkP===gk1?gk2:gk1;const preto=srt([gkP].concat(best.t1)),rosa=srt([gkR].concat(best.t2));let sp=0,sr=0;preto.forEach(function(p){sp+=(p.ovr||0);});rosa.forEach(function(p){sr+=(p.ovr||0);});return{preto:preto,rosa:rosa,avgP:(sp/preto.length).toFixed(2),avgR:(sr/rosa.length).toFixed(2),diff:Math.abs(sp-sr).toFixed(2),score:bs,_ts:Date.now()};}
+
+/* ══════════ UTILITY: resize photo → base64 ════════════════ */
+function resizePhoto(file, maxPx, quality, cb) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      let w=img.width,h=img.height,m=maxPx||320;
+      if(w>m||h>m){if(w>h){h=Math.round(h*m/w);w=m;}else{w=Math.round(w*m/h);h=m;}}
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',quality||0.82));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ══════════ LIcon — React.createElement (no JSX inside) ═══ */
+const _LR=window.LucideReact||{};
+function LIcon(p){const C=_LR[p.name];if(C)return React.createElement(C,{size:p.size||16,style:p.style,color:p.color});return React.createElement('span',{style:p.style},p.fb||'•');}
+
+/* ══════════ MICRO-COMPONENTS ═══════════════════════════════ */
+function Spin({size}){return <span className="spin" style={{color:'#ec4899'}}><LIcon name="Loader2" size={size||14} fb="⟳"/></span>;}
+function PosBadge({pos,sm}){const c=POS_CLR[pos]||{bg:'#64748b',tx:'#0f172a'};const d=sm?20:26,f=sm?8:10;return <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:d,height:d,borderRadius:'50%',background:c.bg,color:c.tx,fontSize:f,fontWeight:900,flexShrink:0}}>{pos}</span>;}
+function OvrBadge({value}){const v=parseFloat(value)||0;const cl=v*10>=85?'#FFD700':v*10>=75?'#94a3b8':'#fb923c';return <span style={{color:cl,fontWeight:900,fontSize:13}}>{v.toFixed(1)}</span>;}
+
+/* ══════════ CLUB CREST SVG ════════════════════════════════ */
+function ClubCrest({size,alpha}){
+  const s=size||80;
+  return (
+    <svg width={s} height={s*1.18} viewBox="0 0 80 94" opacity={alpha||1} overflow="visible">
+      <path d="M40,2 L78,13 L78,57 Q78,82 40,92 Q2,82 2,57 L2,13 Z" fill="rgba(255,255,255,0.06)" stroke="white" strokeWidth="2"/>
+      <path d="M40,7 L73,17 L73,56 Q73,78 40,87 Q7,78 7,56 L7,17 Z" fill="none" stroke="white" strokeWidth="0.8" opacity="0.3"/>
+      <text x="40" y="24" textAnchor="middle" fill="white" fontSize="9" fontWeight="900" fontFamily="Arial Black,sans-serif" letterSpacing="0.5">FUTEBOL</text>
+      <text x="40" y="34" textAnchor="middle" fill="white" fontSize="7" fontWeight="700" fontFamily="Arial,sans-serif">AMIGOS DA OI</text>
+      <line x1="14" y1="38" x2="66" y2="38" stroke="white" strokeWidth="0.6" opacity="0.4"/>
+      <circle cx="40" cy="58" r="15" fill="none" stroke="white" strokeWidth="1.2"/>
+      <circle cx="40" cy="58" r="10" fill="none" stroke="white" strokeWidth="0.6" opacity="0.5"/>
+      <text x="40" y="62" textAnchor="middle" fill="white" fontSize="14" fontFamily="sans-serif">⚽</text>
+      <line x1="14" y1="75" x2="66" y2="75" stroke="white" strokeWidth="0.6" opacity="0.4"/>
+      <text x="40" y="84" textAnchor="middle" fill="white" fontSize="5.5" letterSpacing="2" fontFamily="Arial,sans-serif">DESDE 2018</text>
+    </svg>
+  );
+}
+
+/* ══════════ RANK BADGE SVG ════════════════════════════════ */
+function RankBadge({ovr100}){
+  const isG=ovr100>=85,isS=ovr100>=75;
+  const tier=isG?1:isS?2:3,name=isG?'OURO':isS?'PRATA':'BRONZE';
+  const c1=isG?'#FFD700':isS?'#D8D8D8':'#CD9550',c2=isG?'#7A5100':isS?'#5A5A5A':'#7A3F00';
+  return (
+    <svg width="68" height="78" viewBox="0 0 68 78">
+      <defs>
+        <radialGradient id={'rg'+tier} cx="50%" cy="38%" r="62%">
+          <stop offset="0%" stopColor={c1} stopOpacity="0.35"/>
+          <stop offset="100%" stopColor={c2} stopOpacity="0.95"/>
+        </radialGradient>
+      </defs>
+      <path d="M34,2 L66,12 L66,52 Q66,70 34,76 Q2,70 2,52 L2,12 Z" fill={'url(#rg'+tier+')'} stroke={c1} strokeWidth="1.8"/>
+      <path d="M34,8 L60,17 L60,50 Q60,66 34,72 Q8,66 8,50 L8,17 Z" fill="none" stroke={c1} strokeWidth="0.8" opacity="0.45"/>
+      <circle cx="34" cy="38" r="19" fill={c2} stroke={c1} strokeWidth="1.5" opacity="0.9"/>
+      <text x="34" y="35" textAnchor="middle" dominantBaseline="middle" fill={c1} fontSize="20" fontWeight="900" fontFamily="Arial Black,sans-serif">{tier}</text>
+      <text x="34" y="53" textAnchor="middle" fill={c1} fontSize="7" fontWeight="800" letterSpacing="1.2" fontFamily="Arial,sans-serif">{name}</text>
+    </svg>
+  );
+}
+
+/* ══════════ RADAR CHART (Hexagonal Spider Web) ════════════ */
+function RadarChart({attrs,position}){
+  const SZ=130,cx=SZ/2,cy=SZ/2,maxR=SZ*.39;
+  const N=RKEYS.length;
+  function ang(i){return(-Math.PI/2)+i*(2*Math.PI/N);}
+  function pt(i,frac){const a=ang(i);return{x:cx+maxR*frac*Math.cos(a),y:cy+maxR*frac*Math.sin(a)};}
+  function makePath(frac){return RKEYS.map(function(_,i){const p=pt(i,frac);return(i===0?'M':'L')+p.x.toFixed(2)+','+p.y.toFixed(2);}).join('')+'Z';}
+  const rings=[.2,.4,.6,.8,1];
+  const dataPath=RKEYS.map(function(k,i){const v=Math.min(Math.max(attrs[k]||5,4),10);const frac=v/10;const p=pt(i,frac);return(i===0?'M':'L')+p.x.toFixed(2)+','+p.y.toFixed(2);}).join('')+'Z';
+  const ovr100=calcOvr(position,attrs)*10;
+  const ac=ovr100>=85?'#FFD700':ovr100>=75?'#C8C8C8':'#F97316';
+  const acFill=ovr100>=85?'rgba(255,215,0,0.28)':ovr100>=75?'rgba(200,200,200,0.28)':'rgba(249,115,22,0.28)';
+  return (
+    <svg width={SZ} height={SZ} viewBox={'0 0 '+SZ+' '+SZ}>
+      {rings.map(function(r,ri){return <path key={ri} d={makePath(r)} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="0.7"/>;}) }
+      {RKEYS.map(function(_,i){const outer=pt(i,1);return <line key={i} x1={cx.toFixed(1)} y1={cy.toFixed(1)} x2={outer.x.toFixed(2)} y2={outer.y.toFixed(2)} stroke="rgba(255,255,255,0.14)" strokeWidth="0.8"/>;}) }
+      <path d={dataPath} fill={acFill} stroke={ac} strokeWidth="1.8" strokeLinejoin="round"/>
+      {RKEYS.map(function(k,i){const v=Math.min(Math.max(attrs[k]||5,4),10);const p=pt(i,v/10);return <circle key={i} cx={p.x.toFixed(2)} cy={p.y.toFixed(2)} r="2.8" fill={ac} stroke="rgba(0,0,0,0.5)" strokeWidth="0.6"/>;}) }
+      {RLBLS.map(function(lbl,i){const p=pt(i,1.36);return <text key={i} x={p.x.toFixed(1)} y={p.y.toFixed(1)} textAnchor="middle" dominantBaseline="middle" fontSize="6.5" fill="rgba(255,255,255,0.45)" fontFamily="sans-serif">{lbl}</text>;}) }
+    </svg>
+  );
+}
+
+/* ══════════ PLAYER FORM ════════════════════════════════════ */
+function PlayerForm({initial,onSubmit,onCancel,saving,onPosChange}){
+  const init=initial||{};
+  const [name,setName]=useState(init.name||'');
+  const [pos,setPos]=useState(init.position||'M');
+  const [pers,setPers]=useState(init.personality||'Operário');
+  const [tags,setTags]=useState(init.tags||[]);
+  const [attrs,setAttrs]=useState(Object.assign({},DEF_ATTRS,init.attrs||{}));
+  const [foto,setFoto]=useState(init.foto||'');
+  const [err,setErr]=useState('');
+  useEffect(function(){if(onPosChange)onPosChange(pos);},[pos]);
+  useEffect(function(){if(!initial)setTags([]);},[pos]);
+  const ovr=useMemo(function(){return calcOvr(pos,attrs);},[pos,attrs]);
+  function setA(key,val){setAttrs(function(a){return Object.assign({},a,{[key]:val});});}
+  function togTag(tag){setTags(function(prev){if(prev.indexOf(tag)>=0)return prev.filter(function(t){return t!==tag;});if(prev.length>=3)return prev;return prev.concat([tag]);});}
+  function handlePhoto(e){const f=e.target.files&&e.target.files[0];if(!f)return;resizePhoto(f,320,.82,function(b64){setFoto(b64);});}
+  function submit(){if(!name.trim()){setErr('Digite o nome.');return;}if(saving)return;setErr('');onSubmit({name:name.trim(),position:pos,personality:pers,tags:tags,attrs:attrs,ovr:ovr,foto:foto});}
+  const posW=WEIGHTS[pos]||{};
+  const sAttrs=ATTRS.slice().sort(function(a,b){return (posW[b]||0)-(posW[a]||0);});
+  const topW=Object.keys(posW).sort(function(a,b){return posW[b]-posW[a];}).slice(0,3);
+  const ovrTxt=topW.map(function(k){return ATTR_LB[k].slice(0,3)+'×'+posW[k];}).join(' + ');
+  const ovr100=Math.round(ovr*10);
+  const rankClr=ovr100>=85?'#FFD700':ovr100>=75?'#94a3b8':'#fb923c';
+  const rankLbl=ovr100>=85?'⭐ OURO':ovr100>=75?'🥈 PRATA':'🥉 BRONZE';
+  return (
+    <div className="glass fu" style={{borderRadius:16,padding:16,display:'flex',flexDirection:'column',gap:12}}>
+      {/* Photo upload */}
+      <div>
+        <div style={{fontSize:10,color:'#64748b',marginBottom:6,fontWeight:600}}>FOTO DO ATLETA</div>
+        {foto?(
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <img src={foto} style={{width:56,height:56,borderRadius:'50%',objectFit:'cover',objectPosition:'top',border:'2px solid rgba(236,72,153,0.4)',flexShrink:0}} alt=""/>
+            <div style={{flex:1,fontSize:11,color:'#64748b'}}>Foto carregada ✓</div>
+            <button onClick={function(){setFoto('');}} style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:8,padding:'4px 8px',fontSize:11,color:'#f87171',cursor:'pointer'}}>Remover</button>
+          </div>
+        ):(
+          <label style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:'rgba(255,255,255,0.04)',border:'1px dashed rgba(255,255,255,0.15)',borderRadius:12,cursor:'pointer'}}>
+            <LIcon name="Camera" size={18} fb="📷" style={{color:'#64748b'}}/>
+            <span style={{fontSize:12,color:'#64748b'}}>Adicionar foto do atleta</span>
+            <input type="file" accept="image/*" onChange={handlePhoto} style={{display:'none'}}/>
+          </label>
+        )}
+      </div>
+      <input value={name} onChange={function(e){setName(e.target.value);}} onKeyDown={function(e){if(e.key==='Enter')submit();}} placeholder="Nome do jogador" maxLength={28} disabled={saving} className="inp"/>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div>
+          <div style={{fontSize:10,color:'#64748b',marginBottom:4,fontWeight:600}}>POSIÇÃO</div>
+          <select value={pos} onChange={function(e){setPos(e.target.value);}} disabled={saving} className="inp">
+            {POSITIONS.map(function(p){return <option key={p} value={p}>{p} — {POS_LBL[p]}</option>;})}
+          </select>
+        </div>
+        <div>
+          <div style={{fontSize:10,color:'#64748b',marginBottom:4,fontWeight:600}}>PERSONALIDADE</div>
+          <select value={pers} onChange={function(e){setPers(e.target.value);}} disabled={saving} className="inp">
+            {PERS_LIST.map(function(p){return <option key={p.id} value={p.id}>{p.e} {p.id}</option>;})}
+          </select>
+        </div>
+      </div>
+      {(TAGS_MAP[pos]||[]).length>0&&(
+        <div>
+          <div style={{fontSize:10,color:'#64748b',marginBottom:6,fontWeight:600}}>TAGS <span style={{fontWeight:400,color:'#334155'}}>(máx. 3)</span></div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+            {(TAGS_MAP[pos]||[]).map(function(tag){const sel=tags.indexOf(tag)>=0;return <button key={tag} onClick={function(){togTag(tag);}} style={{padding:'3px 10px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s',background:sel?'#ec4899':'rgba(255,255,255,0.05)',color:sel?'#fff':'#94a3b8',border:'1px solid '+(sel?'#ec4899':'rgba(255,255,255,0.1)')}}>{tag}</button>;})}
+          </div>
+        </div>
+      )}
+      <div>
+        <div style={{fontSize:10,color:'#64748b',marginBottom:6,fontWeight:600}}>ATRIBUTOS</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+          {sAttrs.map(function(a){const w=posW[a]||0;return(
+            <div key={a}>
+              <div style={{fontSize:9,marginBottom:3,color:w>.25?'#ec4899':w>.1?'#8b5cf6':'#475569',fontWeight:w>0?700:400}}>{ATTR_LB[a]}{w>0?' ×'+w:''}</div>
+              <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.07)',overflow:'hidden',marginBottom:4}}><div style={{height:'100%',width:((attrs[a]-4)/6*100)+'%',background:w>.25?'#ec4899':w>.1?'#8b5cf6':'#334155',borderRadius:2}}/></div>
+              <select value={attrs[a]} onChange={function(e){setA(a,parseFloat(e.target.value));}} disabled={saving} className="inp" style={{padding:'6px 10px',fontSize:12}}>
+                {RTNG.map(function(v){return <option key={v} value={v}>{v%1===0?v+'.0':''+v}</option>;})}
+              </select>
+            </div>
+          );})}
+        </div>
+      </div>
+      <div style={{background:'rgba(0,0,0,0.25)',border:'1px solid '+rankClr+'44',borderRadius:12,padding:'10px 14px',textAlign:'center'}}>
+        <div style={{fontSize:9,color:'#94a3b8',letterSpacing:'0.08em',marginBottom:1}}>{rankLbl} — OVERALL PONDERADO</div>
+        <div style={{fontSize:30,fontWeight:900,color:rankClr,lineHeight:1.1,textShadow:'0 0 12px '+rankClr+'55'}}>{ovr100}</div>
+        <div style={{fontSize:9,color:'#475569',marginTop:2}}>{ovrTxt}</div>
+      </div>
+      {err!==''&&<div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'#f87171',background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',borderRadius:10,padding:'7px 11px'}}><LIcon name="AlertCircle" size={11} fb="⚠"/> {err}</div>}
+      <div style={{display:'flex',gap:8}}>
+        <button onClick={onCancel} disabled={saving} style={{flex:1,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'11px',fontSize:12,fontWeight:700,color:'#94a3b8',cursor:'pointer'}}>Cancelar</button>
+        <button onClick={submit} disabled={saving} className="g-pink" style={{flex:2,border:'none',borderRadius:12,padding:'11px',fontSize:13,fontWeight:900,color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+          {saving?<Spin size={12}/>:<LIcon name="Check" size={13} fb="✓"/>}
+          {saving?'Salvando...':(initial?'Salvar':'Adicionar')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ ELENCO TAB ══════════════════════════════════════ */
+function ElencoTab({players,onAdd,onDel,onEdit,saving,loading}){
+  const [showForm,setShowForm]=useState(false);
+  const [editing,setEditing]=useState(null);
+  const [filter,setFilter]=useState('ALL');
+  const [sortMode,setSortMode]=useState('default');
+  const [formPos,setFormPos]=useState('M');
+  const formOpen=showForm||editing!=null;
+  function openNew(){setEditing(null);setShowForm(true);setFormPos('M');}
+  function openEdit(p){setShowForm(false);setEditing(p);setFormPos(p.position);}
+  function closeForm(){setShowForm(false);setEditing(null);}
+  const effectiveFilter=formOpen?formPos:filter;
+  let list=effectiveFilter==='ALL'?players:players.filter(function(p){return p.position===effectiveFilter;});
+  if(sortMode==='alpha')list=list.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+  else if(sortMode==='ovr')list=list.slice().sort(function(a,b){return (b.ovr||0)-(a.ovr||0);});
+  const cnt={};POSITIONS.forEach(function(p){cnt[p]=players.filter(function(x){return x.position===p;}).length;});
+  return (
+    <div className="scr fu" style={{padding:16,paddingBottom:96,display:'flex',flexDirection:'column',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:6}}>
+        {POSITIONS.map(function(p){const active=filter===p&&!formOpen;return(
+          <button key={p} onClick={function(){if(!formOpen){setFilter(function(f){return f===p?'ALL':p;});} }} className="glass" style={{borderRadius:12,padding:'8px 4px',cursor:'pointer',textAlign:'center',background:active?'rgba(236,72,153,0.12)':undefined,border:active?'1px solid rgba(236,72,153,0.35)':undefined}}>
+            <div style={{fontSize:20,fontWeight:900,color:active?'#ec4899':'#f1f5f9'}}>{cnt[p]||0}</div>
+            <PosBadge pos={p} sm/>
+          </button>
+        );})}
+      </div>
+      {showForm?(<PlayerForm key="new" onSubmit={function(d){onAdd(d);closeForm();}} onCancel={closeForm} saving={saving} onPosChange={function(p){setFormPos(p);}}/>)
+      :editing?(<PlayerForm key={editing.id} initial={editing} onSubmit={function(d){onEdit(Object.assign({id:editing.id},d));closeForm();}} onCancel={closeForm} saving={saving} onPosChange={function(p){setFormPos(p);}}/>)
+      :(<button onClick={openNew} className="g-pink" style={{border:'none',borderRadius:14,padding:13,fontSize:13,fontWeight:900,color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><LIcon name="UserPlus" size={15} fb="+"/> CADASTRAR JOGADOR</button>)}
+      {formOpen&&<div style={{display:'flex',alignItems:'center',gap:6,fontSize:11,color:'#f59e0b',background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.2)',borderRadius:10,padding:'6px 12px'}}><LIcon name="Eye" size={12} fb="👁"/> Comparando com {POS_LBL[formPos]}s</div>}
+      {!formOpen&&(<div style={{display:'flex',flexDirection:'column',gap:6}}>
+        <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+          {['ALL'].concat(POSITIONS).map(function(f){const active=filter===f;return <button key={f} onClick={function(){setFilter(f);setSortMode('default');}} style={{padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:700,cursor:'pointer',background:active?'#ec4899':'rgba(255,255,255,0.05)',color:active?'#fff':'#94a3b8',border:'1px solid '+(active?'#ec4899':'rgba(255,255,255,0.1)')}}>{f==='ALL'?'Todos ('+players.length+')':f+' · '+(cnt[f]||0)}</button>;})}
+        </div>
+        <div style={{display:'flex',gap:5}}>
+          {[{id:'default',lbl:'Padrão'},{id:'alpha',lbl:'A–Z'},{id:'ovr',lbl:'Maior OVR'}].map(function(s){const active=sortMode===s.id;return <button key={s.id} onClick={function(){setSortMode(s.id);}} style={{padding:'3px 9px',borderRadius:20,fontSize:10,fontWeight:700,cursor:'pointer',background:active?'rgba(139,92,246,0.25)':'rgba(255,255,255,0.04)',color:active?'#a78bfa':'#475569',border:'1px solid '+(active?'rgba(139,92,246,0.4)':'rgba(255,255,255,0.07)')}}>{s.lbl}</button>;})}
+        </div>
+      </div>)}
+      {loading?(<div style={{textAlign:'center',padding:40,color:'#475569'}}><Spin size={22}/><div style={{marginTop:8,fontSize:12}}>Carregando...</div></div>)
+      :list.length===0?(<div style={{textAlign:'center',padding:'48px 0',color:'#334155',fontSize:13}}>{players.length===0?'⚽ Nenhum jogador cadastrado ainda.':'Nenhum atleta nesta posição.'}</div>)
+      :list.map(function(p){
+        const pA=p.attrs||{};const pW=WEIGHTS[p.position]||{};const ovr100=Math.round((p.ovr||0)*10);
+        return (
+          <div key={p.id} className="glass" style={{borderRadius:14,padding:'12px 14px'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              {/* Photo thumbnail */}
+              <div style={{width:44,height:44,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:'1.5px solid rgba(255,255,255,0.1)'}}>
+                {p.foto?(<img src={p.foto} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'top'}} alt=""/>)
+                :(<div style={{width:'100%',height:'100%',background:'rgba(255,255,255,0.05)',display:'flex',alignItems:'center',justifyContent:'center'}}><LIcon name="User" size={20} fb="👤" style={{color:'#475569'}}/></div>)}
+              </div>
+              <PosBadge pos={p.position}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                <div style={{fontSize:10,color:'#64748b',display:'flex',gap:5,alignItems:'center',flexWrap:'wrap',marginTop:2}}>
+                  <span>{(PERS_EMOJI[p.personality]||'')+' '+(p.personality||'')}</span>
+                  {(p.tags||[]).map(function(t){return <span key={t} style={{background:'rgba(255,255,255,0.07)',borderRadius:20,padding:'1px 6px',border:'1px solid rgba(255,255,255,0.08)',fontSize:9}}>{t}</span>;})}
+                </div>
+              </div>
+              <OvrBadge value={p.ovr||0}/>
+              <div style={{display:'flex',gap:10,marginLeft:6}}>
+                <button onClick={function(){openEdit(p);}} disabled={saving} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',padding:0,lineHeight:1}}><LIcon name="Edit2" size={14} fb="✏"/></button>
+                <button onClick={function(){onDel(p.id);}} disabled={saving} style={{background:'none',border:'none',color:'#475569',cursor:'pointer',padding:0,lineHeight:1}}><LIcon name="Trash2" size={14} fb="🗑"/></button>
+              </div>
+            </div>
+            <div style={{marginTop:10,display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:4}}>
+              {ATTRS.map(function(a){const v=(pA[a])||5;const w=pW[a]||0;const bc=w>.25?'#ec4899':w>.1?'#8b5cf6':'#334155';return(
+                <div key={a} style={{textAlign:'center'}}>
+                  <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.06)',overflow:'hidden',marginBottom:2}}><div style={{height:'100%',width:((v-4)/6*100)+'%',background:bc,borderRadius:2}}/></div>
+                  <div style={{fontSize:8,color:'#475569'}}>{ATTR_LB[a].slice(0,3)}</div>
+                  <div style={{fontSize:9,fontWeight:700,color:'rgba(255,255,255,0.8)'}}>{v}</div>
+                </div>
+              );})}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ══════════ CONVO TAB ═══════════════════════════════════════ */
+function ConvoTab({players,selected,onToggle,onToggleAll,onSort,ppt,setPpt,loading,sorting}){
+  const [search,setSearch]=useState('');
+  const sel=players.filter(function(p){return selected.has(p.id);});
+  const total=sel.length,gkN=sel.filter(function(p){return p.position==='G';}).length;
+  const lineN=total-gkN,needed=ppt*2,lineNd=needed-2;
+  const canGo=total===needed&&gkN===2&&!sorting;
+  const pct=Math.min((total/needed)*100,100),barC=total>needed?'#ef4444':total===needed?'#10b981':'#ec4899';
+  const allSel=players.length>0&&players.every(function(p){return selected.has(p.id);});
+  const filtered=players.filter(function(p){return p.name.toLowerCase().indexOf(search.toLowerCase())>=0;});
+  function SBadge(props){return <div style={{display:'flex',alignItems:'center',gap:4,fontSize:10,fontWeight:700,padding:'3px 8px',borderRadius:20,background:props.ok?'rgba(16,185,129,0.1)':'rgba(239,68,68,0.1)',border:'1px solid '+(props.ok?'rgba(16,185,129,0.3)':'rgba(239,68,68,0.3)'),color:props.ok?'#10b981':'#f87171'}}>{props.ok?'🟢':'🔴'} {props.label}</div>;}
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <div style={{flexShrink:0,padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
+        <div className="glass" style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderRadius:14}}>
+          <LIcon name="SlidersHorizontal" size={13} fb="≡"/>
+          <span style={{fontSize:12,color:'#94a3b8',flex:1}}>Jogadores por time</span>
+          <button onClick={function(){setPpt(function(v){return Math.max(5,v-1);});}} style={{width:27,height:27,borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'white',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+          <span style={{fontWeight:900,fontSize:18,color:'#ec4899',width:20,textAlign:'center'}}>{ppt}</span>
+          <button onClick={function(){setPpt(function(v){return Math.min(11,v+1);});}} style={{width:27,height:27,borderRadius:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'white',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+        </div>
+        <div style={{display:'flex',flexWrap:'wrap',gap:5}}>
+          <SBadge ok={gkN===2} label={'Goleiros '+gkN+'/2'}/>
+          <SBadge ok={lineN===lineNd} label={'Linha '+lineN+'/'+lineNd}/>
+          <SBadge ok={total===needed} label={'Total '+total+'/'+needed}/>
+        </div>
+        <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,0.06)',overflow:'hidden'}}><div style={{height:'100%',width:pct+'%',background:barC,transition:'width .3s,background .3s'}}/></div>
+        <button onClick={function(){if(canGo)onSort();}} disabled={!canGo} className={canGo?'g-pink glow':''} style={{border:'none',borderRadius:14,padding:14,fontSize:13,fontWeight:900,cursor:canGo?'pointer':'not-allowed',display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:canGo?'white':'#334155',background:canGo?undefined:'rgba(255,255,255,0.04)'}}>
+          {sorting?<Spin size={16}/>:<LIcon name="Shuffle" size={16} fb="🔀"/>}
+          {sorting?'Processando 1.000 permutações...':'SORTEAR '+needed+' JOGADORES'}
+        </button>
+        <div style={{position:'relative'}}><span style={{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',color:'#475569',lineHeight:1}}><LIcon name="Search" size={13} fb="🔍"/></span><input value={search} onChange={function(e){setSearch(e.target.value);}} placeholder="Buscar jogador…" className="inp" style={{paddingLeft:32}}/></div>
+        <button onClick={onToggleAll} style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'#475569',background:'none',border:'none',cursor:'pointer',padding:'2px 0'}}><LIcon name={allSel?'CheckSquare':'Square'} size={12} fb={allSel?'☑':'☐'}/>{allSel?'Desmarcar todos':'Marcar todos'}</button>
+      </div>
+      <div className="scr" style={{flex:1,padding:'0 16px',paddingBottom:80}}>
+        {loading?(<div style={{textAlign:'center',padding:32,color:'#475569'}}><Spin size={18}/></div>)
+        :players.length===0?(<div style={{textAlign:'center',padding:'48px 0',color:'#334155',fontSize:13}}>Cadastre jogadores no Elenco primeiro.</div>)
+        :(POSITIONS.map(function(pos){
+          const grp=filtered.filter(function(p){return p.position===pos;});
+          if(!grp.length)return null;
+          const sc=grp.filter(function(p){return selected.has(p.id);}).length;
+          return (
+            <div key={pos} style={{marginBottom:14}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}><PosBadge pos={pos} sm/><span style={{fontSize:9,fontWeight:800,color:'#334155',letterSpacing:'0.06em'}}>{POS_LBL[pos].toUpperCase()}</span><div style={{flex:1,height:1,background:'rgba(255,255,255,0.06)'}}/><span style={{fontSize:9,color:'#334155'}}>{sc}/{grp.length}</span></div>
+              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                {grp.map(function(p){const isSel=selected.has(p.id);return(
+                  <div key={p.id} onClick={function(){onToggle(p.id);}} style={{display:'flex',alignItems:'center',gap:9,padding:'9px 12px',borderRadius:12,cursor:'pointer',background:isSel?'rgba(236,72,153,0.08)':'rgba(255,255,255,0.03)',border:'1px solid '+(isSel?'rgba(236,72,153,0.3)':'rgba(255,255,255,0.06)'),transition:'all .15s'}}>
+                    <div style={{width:17,height:17,borderRadius:5,border:'2px solid '+(isSel?'#ec4899':'rgba(255,255,255,0.15)'),background:isSel?'#ec4899':'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s'}}>{isSel&&<LIcon name="Check" size={9} fb="✓"/>}</div>
+                    {p.foto?(<img src={p.foto} style={{width:28,height:28,borderRadius:'50%',objectFit:'cover',objectPosition:'top',flexShrink:0}} alt=""/>):null}
+                    <PosBadge pos={p.position} sm/>
+                    <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div><div style={{fontSize:9,color:'#475569'}}>{(PERS_EMOJI[p.personality]||'')+' '+(p.tags||[]).join(' · ')}</div></div>
+                    <OvrBadge value={p.ovr||0}/>
+                  </div>
+                );})}
+              </div>
+            </div>
+          );
+        }))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ MINI-CAMPO ══════════════════════════════════════ */
+function PlayerNode({player,swapId,onCk}){const isSel=swapId===player.id;const c=POS_CLR[player.position]||{bg:'#64748b',tx:'#0f172a'};return(<button onClick={function(){onCk(player);}} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'4px 5px',borderRadius:10,cursor:'pointer',transition:'all .2s',background:isSel?'rgba(250,204,21,0.35)':'rgba(0,0,0,0.65)',border:isSel?'2px solid #facc15':'1px solid rgba(255,255,255,0.18)',minWidth:46,maxWidth:62,boxShadow:isSel?'0 0 10px rgba(250,204,21,0.5)':'none'}}><div style={{width:22,height:22,borderRadius:'50%',background:c.bg,color:c.tx,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:900}}>{player.position}</div><div style={{fontSize:8,color:'#f1f5f9',fontWeight:700,textAlign:'center',lineHeight:1.2,maxWidth:54,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{(player.name||'').split(' ')[0]}</div><div style={{fontSize:9}}>{PERS_EMOJI[player.personality]||''}</div></button>);}
+function TeamField({team,isBlack,label,avgOvr,swapId,onCk}){const aG=team.filter(function(p){return p.position==='A';}),mG=team.filter(function(p){return p.position==='M';}),dG=team.filter(function(p){return p.position==='Z'||p.position==='AL';}),gG=team.filter(function(p){return p.position==='G';});const zones=[aG,mG,dG,gG].filter(function(z){return z.length>0;});const hBg=isBlack?'#090f1d':'rgba(236,72,153,0.12)',sF=isBlack?'#1e293b':'#ec4899',sSt=isBlack?'#475569':'#db2777';return(<div style={{borderRadius:16,overflow:'hidden',border:isBlack?'1px solid rgba(255,255,255,0.08)':'1px solid rgba(236,72,153,0.3)'}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:hBg}}><div style={{display:'flex',alignItems:'center',gap:8}}><svg width="22" height="22" viewBox="0 0 24 24" fill={sF} stroke={sSt} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg><span style={{fontWeight:900,fontSize:13,color:isBlack?'white':'#fce7f3'}}>{label}</span></div><div style={{textAlign:'right'}}><div style={{fontSize:22,fontWeight:900,color:isBlack?'white':'#f9a8d4'}}>{avgOvr}</div><div style={{fontSize:8,color:'#475569',letterSpacing:'0.06em'}}>OVR MÉDIO</div></div></div><div className="g-field" style={{position:'relative',padding:'10px 6px',minHeight:175}}><div style={{position:'absolute',inset:0,border:'1.5px solid rgba(255,255,255,0.18)',borderRadius:'0 0 14px 14px',pointerEvents:'none'}}/><div style={{position:'absolute',left:'8%',right:'8%',top:'50%',height:1,background:'rgba(255,255,255,0.2)',pointerEvents:'none'}}/><div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:34,height:34,border:'1.5px solid rgba(255,255,255,0.18)',borderRadius:'50%',pointerEvents:'none'}}/><div style={{position:'absolute',bottom:6,left:'22%',right:'22%',height:16,border:'1.5px solid rgba(255,255,255,0.12)',borderTop:'none',borderRadius:'0 0 8px 8px',pointerEvents:'none'}}/><div style={{position:'relative',zIndex:1,display:'flex',flexDirection:'column',gap:8}}>{zones.map(function(zone,zi){return <div key={zi} style={{display:'flex',justifyContent:'center',gap:5,flexWrap:'wrap'}}>{zone.map(function(pl){return <PlayerNode key={pl.id} player={pl} swapId={swapId} onCk={onCk}/>;})}</div>;})}</div></div></div>);}
+
+/* ══════════ TIMES TAB ═══════════════════════════════════════ */
+function TimesTab({teams,onResort,sorting}){
+  const [local,setLocal]=useState(teams);const [swapId,setSwapId]=useState(null);
+  useEffect(function(){setLocal(teams);setSwapId(null);},[teams]);
+  function handleClick(pl){if(!swapId){setSwapId(pl.id);return;}if(swapId===pl.id){setSwapId(null);return;}const t=local;if(!t)return;const all=t.preto.concat(t.rosa);let p1=null;all.forEach(function(p){if(p.id===swapId)p1=p;});if(!p1){setSwapId(null);return;}const p2=pl;const p1P=t.preto.some(function(p){return p.id===swapId;}),p2P=t.preto.some(function(p){return p.id===p2.id;});if(p1P===p2P){setSwapId(p2.id);return;}const newP=t.preto.map(function(p){return p.id===swapId?p2:p.id===p2.id?p1:p;});const newR=t.rosa.map(function(p){return p.id===swapId?p2:p.id===p2.id?p1:p;});let sp=0,sr=0;newP.forEach(function(p){sp+=(p.ovr||0);});newR.forEach(function(p){sr+=(p.ovr||0);});setLocal(Object.assign({},t,{preto:newP,rosa:newR,avgP:(sp/newP.length).toFixed(2),avgR:(sr/newR.length).toFixed(2),diff:Math.abs(sp-sr).toFixed(2),_ts:Date.now()}));setSwapId(null);}
+  async function handleDownload(){const el=document.getElementById('tc');if(!el||!window.html2canvas)return;try{const canvas=await window.html2canvas(el,{backgroundColor:'#0a0f1e',scale:2,useCORS:true,allowTaint:true,logging:false});const a=document.createElement('a');a.download='times-tia.png';a.href=canvas.toDataURL('image/png');a.click();}catch(e){console.error(e);}}
+  function handleWA(){const t=local;if(!t)return;function byPos(team,pos){return team.filter(function(p){return p.position===pos;}).map(function(p){return p.name;});}function fmt(team,nome,avg){const ls=['⚽ '+nome+' - Média: '+avg];POSITIONS.forEach(function(pos){const ns=byPos(team,pos);if(ns.length)ls.push(pos+': '+ns.join(', '));});return ls.join('\n');}const txt=['Preparem-se para ficar putos!! Saiu a escalação da TiA para nossa pela de segunda:','',fmt(t.preto,'Preto',t.avgP),'',fmt(t.rosa,'Rosa',t.avgR)].join('\n');window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');}
+  if(!local){return <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:14,padding:32,textAlign:'center'}}><div style={{fontSize:52}}>⚽</div><p style={{color:'#334155',fontSize:13,lineHeight:1.7}}>Selecione jogadores na aba <strong style={{color:'#ec4899'}}>Pelada</strong> e clique em sortear.</p></div>;}
+  const t=local,d=parseFloat(t.diff)||0;
+  const bLb=d<=.5?'Perfeito!':d<=1.5?'Muito equilibrado!':d<=3?'Bom equilíbrio':'Desequilibrado';
+  const bCl=d<=1.5?'#10b981':d<=3?'#f59e0b':'#ef4444';
+  return (
+    <div className="scr" style={{paddingBottom:90}}>
+      <div style={{padding:'12px 16px 0'}}><div className="glass" style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',borderRadius:14}}><div><div style={{fontSize:9,color:'#475569',marginBottom:2,letterSpacing:'0.07em'}}>EQUILÍBRIO</div><div style={{fontSize:22,fontWeight:900,color:bCl}}>Δ {t.diff}</div></div><div style={{textAlign:'right'}}><div style={{fontSize:10,fontWeight:700,color:bCl}}><LIcon name="Zap" size={11} fb="⚡"/> {bLb}</div><div style={{fontSize:9,color:'#334155',marginTop:2}}>Penalty: {Math.round(t.score||0)}</div></div></div></div>
+      {swapId&&<div style={{margin:'8px 16px 0',padding:'7px 12px',borderRadius:10,background:'rgba(250,204,21,0.08)',border:'1px solid rgba(250,204,21,0.25)',fontSize:10,color:'#fbbf24',textAlign:'center'}}>🔄 Toque em um jogador do time adversário para trocar</div>}
+      <div id="tc" style={{padding:'8px 16px',display:'flex',flexDirection:'column',gap:10,background:'#0a0f1e'}}>
+        <TeamField team={t.preto} isBlack={true} label="TIME PRETO" avgOvr={t.avgP} swapId={swapId} onCk={handleClick}/>
+        <TeamField team={t.rosa} isBlack={false} label="TIME ROSA" avgOvr={t.avgR} swapId={swapId} onCk={handleClick}/>
+      </div>
+      <div style={{padding:'8px 16px 0',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+        <button onClick={function(){if(!sorting)onResort();}} disabled={sorting} style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>{sorting?<Spin size={11}/>:<LIcon name="RotateCcw" size={12} fb="↺"/>} Ressortear</button>
+        <button onClick={handleDownload} style={{background:'rgba(99,102,241,0.1)',border:'1px solid rgba(99,102,241,0.25)',borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:'#818cf8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><LIcon name="Download" size={12} fb="⬇"/> Download</button>
+        <button onClick={handleWA} style={{background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.25)',borderRadius:12,padding:'11px 4px',fontSize:11,fontWeight:700,color:'#4ade80',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}><span>📲</span> WhatsApp</button>
+      </div>
+      {swapId&&<div style={{padding:'6px 16px 0'}}><button onClick={function(){setSwapId(null);}} style={{width:'100%',background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:12,padding:'9px',fontSize:11,fontWeight:700,color:'#f87171',cursor:'pointer'}}>✕ Cancelar troca</button></div>}
+    </div>
+  );
+}
+
+/* ══════════ JOGADOR TAB — FUT CARD PREMIUM ═════════════════ */
+function JogadorTab({players}){
+  const [selId,setSelId]=useState('');
+  const player=selId?(players.find(function(p){return p.id===selId;})||null):null;
+  const grouped={};
+  POSITIONS.forEach(function(pos){const g=players.filter(function(p){return p.position===pos;}).sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});if(g.length>0)grouped[pos]=g;});
+  const attrs=player?(player.attrs||{}):DEF_ATTRS;
+  const ovr=player?(player.ovr||calcOvr(player.position,attrs)):0;
+  const ovr100=Math.round(ovr*10);
+  const posW=player?(WEIGHTS[player.position]||{}):{};
+  const isGold=ovr100>=85,isSilv=ovr100>=75;
+  const acC=isGold?'#FFD700':isSilv?'#D0D0D0':'#F97316';
+  const acDark=isGold?'#7A5100':isSilv?'#606060':'#9A4510';
+  const cardBg=isGold?'linear-gradient(160deg,#1a1005 0%,#2d1f08 30%,#1a1008 65%,#0d0802 100%)':isSilv?'linear-gradient(160deg,#0d1520 0%,#1a2a3a 30%,#0d1520 65%,#060d18 100%)':'linear-gradient(160deg,#1a0805 0%,#2a1008 30%,#180a05 65%,#0a0502 100%)';
+  const topAccent=isGold?'linear-gradient(90deg,#8B6914,#FFD700 45%,#8B6914)':isSilv?'linear-gradient(90deg,#505050,#C8C8C8 45%,#505050)':'linear-gradient(90deg,#9A4510,#F97316 45%,#9A4510)';
+  const SHIELD='polygon(13% 0%,87% 0%,100% 11%,100% 80%,81% 96%,50% 100%,19% 96%,0% 80%,0% 11%)';
+  const CW=300;
+
+  async function downloadCard(){
+    const el=document.getElementById('futcard');
+    if(!el||!window.html2canvas)return;
+    try{
+      const canvas=await window.html2canvas(el,{backgroundColor:null,scale:3,useCORS:true,allowTaint:true,logging:false,foreignObjectRendering:false});
+      const a=document.createElement('a');
+      a.download=(player?player.name.replace(/\s+/g,'_'):'atleta')+'_TiA_Card.png';
+      a.href=canvas.toDataURL('image/png');a.click();
+    }catch(e){console.error('Card DL error:',e);}
+  }
+
+  return (
+    <div className="scr fu" style={{padding:16,paddingBottom:96,display:'flex',flexDirection:'column',gap:14,alignItems:'center'}}>
+      {/* Selector */}
+      <div style={{width:'100%'}}>
+        <div style={{fontSize:10,color:'#64748b',marginBottom:5,fontWeight:600,letterSpacing:'0.06em'}}>SELECIONAR ATLETA</div>
+        <select value={selId} onChange={function(e){setSelId(e.target.value);}} className="inp">
+          <option value="">— Escolha um jogador —</option>
+          {POSITIONS.map(function(pos){
+            if(!grouped[pos])return null;
+            return (
+              <optgroup key={pos} label={POS_LBL[pos]}>
+                {grouped[pos].map(function(p){return <option key={p.id} value={p.id}>{p.name} · {Math.round((p.ovr||0)*10)}</option>;})}
+              </optgroup>
+            );
+          })}
+        </select>
+      </div>
+
+      {!player&&(
+        <div style={{textAlign:'center',padding:'44px 0',color:'#334155',fontSize:13}}>
+          <div style={{fontSize:38,marginBottom:10}}>🃏</div>
+          Selecione um atleta para gerar o FUT Card.
+        </div>
+      )}
+
+      {player&&(
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14,width:'100%'}}>
+          {/* ── SHIELD CARD ── */}
+          <div style={{filter:`drop-shadow(0 6px 24px ${acC}55) drop-shadow(0 0 48px ${acC}1A)`}}>
+            <div id="futcard" style={{width:CW,clipPath:SHIELD,background:cardBg,position:'relative',overflow:'hidden'}}>
+
+              {/* Top accent strip */}
+              <div style={{height:5,background:topAccent}}/>
+
+              {/* ── TOP SECTION: photo + OVR + badge ── */}
+              <div style={{position:'relative',height:195,overflow:'hidden'}}>
+                {/* Stadium atmosphere bg */}
+                <div style={{position:'absolute',inset:0,background:'radial-gradient(ellipse at 65% 45%,rgba(30,90,30,0.22) 0%,transparent 65%)'}}/>
+
+                {/* PHOTO (left side) */}
+                <div style={{position:'absolute',left:0,top:0,width:128,height:195,overflow:'hidden'}}>
+                  {player.foto?(
+                    <img src={player.foto} alt={player.name} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'top center',display:'block'}}/>
+                  ):(
+                    /* Fallback silhouette */
+                    <div style={{width:'100%',height:'100%',background:'linear-gradient(180deg,#1e293b 0%,#0f172a 100%)',display:'flex',alignItems:'flex-end',justifyContent:'center',paddingBottom:8}}>
+                      <svg width="104" height="150" viewBox="0 0 104 150">
+                        <circle cx="52" cy="34" r="23" fill="#334155"/>
+                        <circle cx="44" cy="30" r="3" fill="#1e293b"/>
+                        <circle cx="60" cy="30" r="3" fill="#1e293b"/>
+                        <path d="M44,40 Q52,46 60,40" fill="none" stroke="#475569" strokeWidth="1.5"/>
+                        <path d="M52,57 C24,57 10,74 10,100 L10,150 L94,150 L94,100 C94,74 80,57 52,57 Z" fill="#1e293b"/>
+                        <path d="M32,64 Q52,76 72,64 L72,57 Q52,70 32,57 Z" fill="#283848"/>
+                        <circle cx="52" cy="90" r="13" fill="none" stroke={acC} strokeWidth="1.5" opacity="0.45"/>
+                        <text x="52" y="94" textAnchor="middle" fill={acC} fontSize="9" opacity="0.55" fontFamily="sans-serif">TiA</text>
+                      </svg>
+                    </div>
+                  )}
+                  {/* Dark fade at bottom */}
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,height:65,background:'linear-gradient(0deg,rgba(0,0,0,0.88) 0%,transparent 100%)'}}/>
+                  {/* Jersey collar overlay */}
+                  <div style={{position:'absolute',bottom:32,left:'50%',transform:'translateX(-50%)',width:50,height:10,borderTop:'2px solid '+acC,borderLeft:'2px solid '+acC,borderRight:'2px solid '+acC,borderRadius:'50% 50% 0 0',opacity:.75}}/>
+                  {/* Club crest on chest */}
+                  <div style={{position:'absolute',bottom:4,left:'50%',transform:'translateX(-50%)'}}>
+                    <ClubCrest size={30} alpha={0.65}/>
+                  </div>
+                </div>
+
+                {/* Photo side accent */}
+                <div style={{position:'absolute',left:128,top:0,bottom:0,width:2,background:'linear-gradient(180deg,transparent,'+acC+'77,transparent)'}}/>
+
+                {/* OVR + POSITION (right of photo) */}
+                <div style={{position:'absolute',left:136,right:6,top:0,bottom:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+                  <div style={{fontSize:66,fontWeight:900,lineHeight:1,color:acC,textShadow:'0 0 22px '+acC+'BB,0 0 44px '+acC+'44',fontFamily:'Arial Black,sans-serif',letterSpacing:'-1px'}}>{ovr100}</div>
+                  <div style={{marginTop:5,background:'rgba(0,0,0,0.55)',borderRadius:7,padding:'3px 11px',fontSize:11,fontWeight:700,color:'rgba(255,255,255,0.88)',letterSpacing:'0.07em'}}>
+                    {player.position} · {POS_LBL[player.position]}
+                  </div>
+                </div>
+
+                {/* Rank badge (top-right) */}
+                <div style={{position:'absolute',top:8,right:8,zIndex:2}}>
+                  <RankBadge ovr100={ovr100}/>
+                </div>
+              </div>
+
+              {/* Accent separator */}
+              <div style={{height:1.5,background:'linear-gradient(90deg,transparent 5%,'+acC+' 30%,'+acC+' 70%,transparent 95%)'}}/>
+
+              {/* ── NAME + TAGS ── */}
+              <div style={{padding:'10px 16px 9px',textAlign:'center',background:'rgba(0,0,0,0.22)'}}>
+                <div style={{fontSize:24,fontWeight:900,color:'#f8fafc',letterSpacing:'0.01em',lineHeight:1.15,textShadow:'0 1px 8px '+acC+'33',fontFamily:'Arial Black,sans-serif'}}>
+                  {player.name}
+                </div>
+                <div style={{display:'flex',justifyContent:'center',flexWrap:'wrap',gap:5,marginTop:7}}>
+                  {(player.tags||[]).map(function(t){return <span key={t} style={{background:'rgba(0,0,0,0.55)',border:'1px solid '+acC+'55',borderRadius:20,padding:'3px 11px',fontSize:11,color:'rgba(255,255,255,0.88)',fontWeight:700}}>{t}</span>;})}
+                  {player.personality&&<span style={{background:'rgba(0,0,0,0.55)',border:'1px solid '+acC+'55',borderRadius:20,padding:'3px 11px',fontSize:11,color:'rgba(255,255,255,0.88)',fontWeight:700}}>{(PERS_EMOJI[player.personality]||'')} {player.personality}</span>}
+                </div>
+              </div>
+
+              {/* Accent separator */}
+              <div style={{height:1,background:'linear-gradient(90deg,transparent 5%,'+acC+'55 40%,'+acC+'55 60%,transparent 95%)'}}/>
+
+              {/* ── STATS SECTION ── */}
+              <div style={{position:'relative',overflow:'hidden',minHeight:185}}>
+                {/* Field background */}
+                <div style={{position:'absolute',inset:0,background:'linear-gradient(180deg,rgba(8,22,8,0.97) 0%,rgba(6,18,6,0.99) 100%)'}}/>
+                {/* Field lines (CSS only, html2canvas compatible) */}
+                <div style={{position:'absolute',inset:0,opacity:0.055,pointerEvents:'none'}}>
+                  <div style={{position:'absolute',left:'50%',top:'8%',bottom:'4%',width:1,background:'white',transform:'translateX(-50%)'}}/>
+                  <div style={{position:'absolute',left:'8%',right:'8%',top:'48%',height:1,background:'white'}}/>
+                  <div style={{position:'absolute',top:'48%',left:'50%',transform:'translate(-50%,-50%)',width:55,height:55,border:'1px solid white',borderRadius:'50%'}}/>
+                </div>
+                {/* Club crest watermark */}
+                <div style={{position:'absolute',left:'50%',top:'50%',transform:'translate(-50%,-50%)',opacity:.065,pointerEvents:'none'}}>
+                  <ClubCrest size={110} alpha={1}/>
+                </div>
+
+                {/* Content row */}
+                <div style={{position:'relative',zIndex:1,display:'flex',alignItems:'stretch',padding:'10px 8px 14px'}}>
+                  {/* Left: Attributes list */}
+                  <div style={{flex:1,paddingRight:4,display:'flex',flexDirection:'column',justifyContent:'space-between',gap:3}}>
+                    {ATTRS.map(function(a){
+                      const v=attrs[a]||5,v100=Math.round(v*10),w=posW[a]||0;
+                      const isTop=w>.25,barC=isTop?acC:v100>=75?'#22c55e':v100>=60?'#94a3b8':'#64748b';
+                      return (
+                        <div key={a} style={{display:'flex',alignItems:'center',gap:5}}>
+                          <div style={{width:60,fontSize:isTop?9.5:8.5,color:isTop?acC:'rgba(255,255,255,0.6)',fontWeight:isTop?800:500,textAlign:'right',flexShrink:0,letterSpacing:'0.01em'}}>{ATTR_LB[a]}</div>
+                          <div style={{flex:1,height:5,background:'rgba(255,255,255,0.08)',borderRadius:3,overflow:'hidden'}}>
+                            <div style={{height:'100%',width:v100+'%',background:barC,borderRadius:3}}/>
+                          </div>
+                          <div style={{width:24,fontSize:10,fontWeight:700,color:isTop?acC:'rgba(255,255,255,0.65)',textAlign:'right',flexShrink:0}}>{v100}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right: Radar chart */}
+                  <div style={{width:134,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',paddingLeft:2}}>
+                    <div style={{fontSize:7,color:'rgba(255,255,255,0.28)',marginBottom:1,letterSpacing:'0.1em'}}>RADAR</div>
+                    <RadarChart attrs={attrs} position={player.position}/>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer bar */}
+              <div style={{background:'rgba(0,0,0,0.6)',padding:'6px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{fontSize:7,color:'rgba(255,255,255,0.18)',letterSpacing:'0.05em',fontFamily:'sans-serif'}}>TiA — AMIGOS DA OI</div>
+                <div style={{display:'flex',alignItems:'center',gap:3}}><div style={{width:3,height:3,borderRadius:'50%',background:acC,opacity:.6}}/><div style={{width:3,height:3,borderRadius:'50%',background:acC,opacity:.4}}/><div style={{width:3,height:3,borderRadius:'50%',background:acC,opacity:.2}}/></div>
+                <div style={{fontSize:7,color:'rgba(255,255,255,0.18)',letterSpacing:'0.05em',fontFamily:'sans-serif'}}>ENGINE v5</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Download button */}
+          <button onClick={downloadCard} style={{width:CW,background:'rgba(99,102,241,0.12)',border:'1px solid rgba(99,102,241,0.3)',borderRadius:14,padding:'13px 16px',fontSize:13,fontWeight:700,color:'#818cf8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            <LIcon name="Download" size={15} fb="⬇"/> 📸 Baixar Card do Jogador
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════ APP ROOT ═══════════════════════════════════════ */
+function App(){
+  const [db,setDb]=useState(window.__db||null);const [api,setApi]=useState(window.__fsAPI||null);const [fbErr,setFbErr]=useState(window.__fbErr||null);
+  const [players,setPlayers]=useState([]);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [sorting,setSorting]=useState(false);
+  const [selected,setSelected]=useState(new Set());const [teams,setTeams]=useState(null);const [ppt,setPpt]=useState(7);const [tab,setTab]=useState('elenco');
+  useEffect(function(){if(db)return;function onReady(){setDb(window.__db);setApi(window.__fsAPI);}function onErr(){setFbErr(window.__fbErr||'Erro Firebase');}window.addEventListener('firebase-ready',onReady,{once:true});window.addEventListener('firebase-error',onErr,{once:true});return function(){window.removeEventListener('firebase-ready',onReady);window.removeEventListener('firebase-error',onErr);};},[db]);
+  useEffect(function(){if(!db||!api)return;setLoading(true);const unsub=api.onSnapshot(api.collection(db,'jogadores'),function(snap){const data=snap.docs.map(function(d){const p=Object.assign({id:d.id},d.data());p.ovr=calcOvr(p.position,p.attrs||{});return p;});data.sort(function(a,b){return (a.createdAt||0)-(b.createdAt||0);});setPlayers(data);const vid=new Set(data.map(function(p){return p.id;}));setSelected(function(prev){const arr=Array.from(prev).filter(function(id){return vid.has(id);});const c=new Set(arr);return c.size===prev.size?prev:c;});setLoading(false);},function(e){console.error(e);setLoading(false);});return unsub;},[db,api]);
+  async function addP(data){if(saving)return;setSaving(true);try{await api.addDoc(api.collection(db,'jogadores'),Object.assign({},data,{createdAt:Date.now()}));}catch(e){console.error(e);}finally{setSaving(false);}}
+  async function delP(id){if(saving)return;setSaving(true);try{await api.deleteDoc(api.doc(db,'jogadores',id));}catch(e){console.error(e);}finally{setSaving(false);}}
+  async function editP(data){if(saving)return;setSaving(true);try{const id=data.id;const f=Object.assign({},data);delete f.id;await api.updateDoc(api.doc(db,'jogadores',id),f);}catch(e){console.error(e);}finally{setSaving(false);}}
+  function togPlayer(id){setSelected(function(s){const n=new Set(s);n.has(id)?n.delete(id):n.add(id);return n;});}
+  function togAll(){const a=players.every(function(p){return selected.has(p.id);});setSelected(a?new Set():new Set(players.map(function(p){return p.id;})));}
+  function doSort(){const sel=players.filter(function(p){return selected.has(p.id);});setSorting(true);setTimeout(function(){const r=geneticSort(sel,ppt);if(r){setTeams(r);setTab('times');}setSorting(false);},60);}
+  if(!db&&!fbErr){return <div style={{minHeight:'100dvh',background:'#0a0f1e',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:16}}><div style={{fontSize:48}}>🤖</div><p style={{color:'#ec4899',fontWeight:700,fontSize:14}}>Conectando ao Firebase...</p></div>;}
+  if(fbErr){return <div style={{minHeight:'100dvh',background:'#0a0f1e',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:32,textAlign:'center'}}><div style={{fontSize:44}}>⚠️</div><p style={{color:'#f87171',fontWeight:700}}>Erro ao conectar</p><p style={{color:'#475569',fontSize:11,maxWidth:280}}>{fbErr}</p><button onClick={function(){window.location.reload();}} style={{marginTop:8,padding:'10px 20px',borderRadius:12,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#94a3b8',cursor:'pointer',fontSize:12}}>Tentar novamente</button></div>;}
+  const savingBadge=saving?<div style={{display:'flex',alignItems:'center',gap:4,fontSize:9,fontWeight:700,color:'#ec4899',background:'rgba(236,72,153,0.08)',border:'1px solid rgba(236,72,153,0.2)',borderRadius:20,padding:'3px 8px'}}><Spin size={9}/> SALVANDO</div>:!loading?<div style={{display:'flex',alignItems:'center',gap:4,fontSize:9,color:'#10b981'}}><span style={{width:5,height:5,borderRadius:'50%',background:'#10b981',display:'inline-block'}}/>AO VIVO</div>:null;
+  const TABS=[{id:'elenco',lbl:'Elenco',icon:'Users',fb:'👥'},{id:'pelada',lbl:'Pelada',icon:'Shield',fb:'🛡'},{id:'times',lbl:'Times',icon:'Trophy',fb:'🏆'},{id:'jogador',lbl:'Jogador',icon:'User',fb:'👤'}];
+  return (
+    <div style={{maxWidth:430,margin:'0 auto',height:'100dvh',display:'flex',flexDirection:'column',background:'#0a0f1e'}}>
+      <div className="glass" style={{flexShrink:0,padding:'10px 16px',display:'flex',alignItems:'center',gap:10}}>
+        <svg width="32" height="32" viewBox="0 0 38 38" fill="none">
+          <line x1="19" y1="2" x2="19" y2="7" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round"/>
+          <circle cx="19" cy="1.8" r="2.2" fill="#f472b6"/>
+          <rect x="8" y="7" width="22" height="15" rx="4" fill="#1e293b"/>
+          <rect x="8" y="7" width="22" height="15" rx="4" stroke="#475569" strokeWidth="0.8"/>
+          <rect x="11" y="11" width="6" height="5" rx="1.5" fill="#1d4ed8"/>
+          <rect x="12.5" y="12.5" width="2.5" height="2" rx="0.5" fill="#bfdbfe"/>
+          <rect x="21" y="11" width="6" height="5" rx="1.5" fill="#be185d"/>
+          <rect x="22.5" y="12.5" width="2.5" height="2" rx="0.5" fill="#fbcfe8"/>
+          <rect x="12" y="18.5" width="14" height="1.8" rx="0.9" fill="#0f172a"/>
+          <circle cx="15" cy="19.4" r="0.8" fill="#22c55e"/>
+          <circle cx="19" cy="19.4" r="0.8" fill="#22c55e"/>
+          <circle cx="23" cy="19.4" r="0.8" fill="#22c55e"/>
+          <rect x="16" y="22" width="6" height="3.5" rx="1.5" fill="#334155"/>
+          <path d="M5 28 L11 24.5 L19 26 L19 37 L7 37 Z" fill="#111827"/>
+          <path d="M33 28 L27 24.5 L19 26 L19 37 L31 37 Z" fill="#ec4899"/>
+          <path d="M3 29 L5 28 L7 37 L3 33 Z" fill="#0f172a"/>
+          <path d="M35 29 L33 28 L31 37 L35 33 Z" fill="#db2777"/>
+          <path d="M16 25.5 Q19 23 22 25.5 L20.5 26 Q19 24.5 17.5 26 Z" fill="#334155"/>
+        </svg>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:900,fontSize:14,lineHeight:1.2}}>TiA — Amigos da Oi</div>
+          <div style={{fontSize:9,color:'#334155',letterSpacing:'0.04em'}}>{players.length} ATLETAS · ENGINE v5</div>
+        </div>
+        {savingBadge}
+      </div>
+      <div style={{flex:1,overflow:'hidden',position:'relative'}}>
+        {tab==='elenco'  && <ElencoTab  players={players} onAdd={addP} onDel={delP} onEdit={editP} saving={saving} loading={loading}/>}
+        {tab==='pelada'  && <ConvoTab   players={players} selected={selected} onToggle={togPlayer} onToggleAll={togAll} onSort={doSort} ppt={ppt} setPpt={setPpt} loading={loading} sorting={sorting}/>}
+        {tab==='times'   && <TimesTab   teams={teams} onResort={doSort} sorting={sorting}/>}
+        {tab==='jogador' && <JogadorTab players={players}/>}
+      </div>
+      <div className="glass" style={{flexShrink:0,display:'flex',borderTop:'1px solid rgba(255,255,255,0.06)',paddingBottom:'max(10px,env(safe-area-inset-bottom))'}}>
+        {TABS.map(function(tc){const active=tab===tc.id;const hasDot=tc.id==='times'&&teams!=null;return(
+          <button key={tc.id} onClick={function(){setTab(tc.id);}} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'10px 4px 8px',background:'none',border:'none',cursor:'pointer',color:active?'#ec4899':'#334155',transition:'color .15s',position:'relative'}}>
+            <span style={{position:'relative',lineHeight:1}}><LIcon name={tc.icon} size={19} fb={tc.fb}/>{hasDot&&<span style={{position:'absolute',top:-3,right:-5,width:7,height:7,borderRadius:'50%',background:'#ec4899',border:'1.5px solid #0a0f1e'}}/>}</span>
+            <span style={{fontSize:8,fontWeight:active?800:400,letterSpacing:'0.05em'}}>{tc.lbl.toUpperCase()}</span>
+            {active&&<div style={{width:18,height:2,borderRadius:1,background:'linear-gradient(90deg,#ec4899,#8b5cf6)'}}/>}
+          </button>
+        );})}
+      </div>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
